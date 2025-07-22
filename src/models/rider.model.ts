@@ -49,6 +49,7 @@ export interface UpdateRiderData {
   vehicle_type?: VehicleType | null;
   license_plate?: string | null;
   profile_image_url?: string | null;
+  updated_at?: Date;
 }
 
 /**

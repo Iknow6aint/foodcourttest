@@ -1,5 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsString, IsBoolean, IsNumber, IsOptional, IsEnum, IsUrl, MinLength, MaxLength, Min, Max, Matches } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsEnum,
+  IsUrl,
+  MinLength,
+  MaxLength,
+  Min,
+  Max,
+  Matches,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { VehicleType } from '../models/rider.model';
 
