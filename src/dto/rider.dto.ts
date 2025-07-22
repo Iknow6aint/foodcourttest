@@ -1,12 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsEmail,
   IsString,
   IsBoolean,
   IsNumber,
   IsOptional,
   IsEnum,
   IsUrl,
+  IsInt,
+  IsPositive,
+  IsNotEmpty,
   MinLength,
   MaxLength,
   Min,
@@ -25,11 +27,15 @@ export class RiderLocationUpdateDto {
     example: 37.7749,
     minimum: -90,
     maximum: 90,
+    type: 'number',
+    format: 'float',
   })
   @IsNumber({}, { message: 'Latitude must be a valid number' })
   @Min(-90, { message: 'Latitude must be between -90 and 90' })
   @Max(90, { message: 'Latitude must be between -90 and 90' })
-  @Transform(({ value }) => parseFloat(value))
+  @Transform(({ value }) =>
+    typeof value === 'string' ? parseFloat(value) : value,
+  )
   current_latitude: number;
 
   @ApiProperty({
@@ -37,11 +43,15 @@ export class RiderLocationUpdateDto {
     example: -122.4194,
     minimum: -180,
     maximum: 180,
+    type: 'number',
+    format: 'float',
   })
   @IsNumber({}, { message: 'Longitude must be a valid number' })
   @Min(-180, { message: 'Longitude must be between -180 and 180' })
   @Max(180, { message: 'Longitude must be between -180 and 180' })
-  @Transform(({ value }) => parseFloat(value))
+  @Transform(({ value }) =>
+    typeof value === 'string' ? parseFloat(value) : value,
+  )
   current_longitude: number;
 }
 
@@ -115,4 +125,52 @@ export class RiderProfileUpdateDto {
   @IsOptional()
   @IsUrl({}, { message: 'Profile image URL must be a valid URL' })
   profile_image_url?: string;
+}
+
+/**
+ * DTO for order assignment to rider
+ */
+export class OrderAssignmentDto {
+  @ApiProperty({
+    description: 'Order ID to assign',
+    example: 101,
+  })
+  @IsInt()
+  @IsPositive()
+  order_id: number;
+
+  @ApiProperty({
+    description: 'Order details/description',
+    example: 'Burger and Fries delivery',
+  })
+  @IsString()
+  @IsNotEmpty()
+  order_description: string;
+
+  @ApiProperty({
+    description: 'Customer name',
+    example: 'Jane Smith',
+  })
+  @IsString()
+  @IsNotEmpty()
+  customer_name: string;
+
+  @ApiProperty({
+    description: 'Delivery address',
+    example: '123 Main St, City, State',
+  })
+  @IsString()
+  @IsNotEmpty()
+  delivery_address: string;
+
+  @ApiProperty({
+    description: 'Order priority (1-5, where 5 is highest)',
+    example: 3,
+    required: false,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  priority?: number;
 }

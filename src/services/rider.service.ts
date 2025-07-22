@@ -23,12 +23,17 @@ import {
   LocationUpdateResponseDto,
   ApiResponseDto,
 } from '../dto/rider-response.dto';
+import { ConnectionManagerService } from '../websockets/connection-manager.service';
+import { LocationUpdateMessageDto } from '../dto/websocket-message.dto';
 
 @Injectable()
 export class RiderService {
   private readonly logger = new Logger(RiderService.name);
 
-  constructor(private readonly knexService: KnexService) {}
+  constructor(
+    private readonly knexService: KnexService,
+    private readonly connectionManager: ConnectionManagerService,
+  ) {}
 
   private get knex() {
     return this.knexService.getKnex();
@@ -129,6 +134,21 @@ export class RiderService {
         .first();
 
       await trx.commit();
+
+      // Broadcast location update to dispatch dashboards via WebSocket
+      const locationMessage: LocationUpdateMessageDto = {
+        type: 'location_update',
+        data: {
+          riderId,
+          latitude: current_latitude,
+          longitude: current_longitude,
+          timestamp: new Date().toISOString(),
+        },
+        timestamp: new Date().toISOString(),
+        messageId: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      };
+
+      this.connectionManager.broadcastLocationUpdate(locationMessage);
 
       this.logger.log(
         `Location updated for rider ${riderId}: (${current_latitude}, ${current_longitude})`,

@@ -3,6 +3,7 @@ import {
   Get,
   Put,
   Patch,
+  Post,
   Body,
   UseGuards,
   HttpCode,
@@ -13,8 +14,8 @@ import {
   ApiTags,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
   ApiHeader,
+  ApiSecurity,
 } from '@nestjs/swagger';
 import { RiderService } from '../services/rider.service';
 import { RiderAuthGuard, CurrentRider } from '../auth/rider-auth.guard';
@@ -28,14 +29,22 @@ import {
   LocationUpdateResponseDto,
   ApiResponseDto,
 } from '../dto/rider-response.dto';
+import {
+  ValidationErrorResponseDto,
+  UnauthorizedErrorResponseDto,
+  NotFoundErrorResponseDto,
+} from '../dto/error-response.dto';
+import { SwaggerExamples } from '../dto/swagger-examples';
 
 @ApiTags('Riders')
+@ApiSecurity('rider-auth')
 @Controller('api/riders')
 @UseGuards(RiderAuthGuard)
 @ApiHeader({
   name: 'x-rider-id',
-  description: 'Rider ID for authentication',
+  description: 'Rider ID for authentication (e.g., 1, 2, 3)',
   required: true,
+  example: '1',
 })
 export class RiderController {
   private readonly logger = new Logger(RiderController.name);
@@ -51,14 +60,19 @@ export class RiderController {
     status: 200,
     description: 'Rider profile retrieved successfully',
     type: RiderPublicProfileDto,
+    example: SwaggerExamples.RIDER_PROFILE,
   })
   @ApiResponse({
     status: 401,
     description: 'Unauthorized - Invalid rider authentication',
+    type: UnauthorizedErrorResponseDto,
+    example: SwaggerExamples.UNAUTHORIZED_ERROR,
   })
   @ApiResponse({
     status: 404,
     description: 'Rider not found or inactive',
+    type: NotFoundErrorResponseDto,
+    example: SwaggerExamples.NOT_FOUND_ERROR,
   })
   async getRiderProfile(
     @CurrentRider() riderId: number,
@@ -78,18 +92,25 @@ export class RiderController {
     status: 200,
     description: 'Location updated successfully',
     type: LocationUpdateResponseDto,
+    example: SwaggerExamples.LOCATION_UPDATE_RESPONSE,
   })
   @ApiResponse({
     status: 400,
-    description: 'Bad Request - Invalid coordinates or data',
+    description: 'Bad Request - Invalid coordinates or validation errors',
+    type: ValidationErrorResponseDto,
+    example: SwaggerExamples.COORDINATE_VALIDATION_ERROR,
   })
   @ApiResponse({
     status: 401,
     description: 'Unauthorized - Invalid rider authentication',
+    type: UnauthorizedErrorResponseDto,
+    example: SwaggerExamples.UNAUTHORIZED_ERROR,
   })
   @ApiResponse({
     status: 404,
     description: 'Rider not found or inactive',
+    type: NotFoundErrorResponseDto,
+    example: SwaggerExamples.NOT_FOUND_ERROR,
   })
   async updateLocation(
     @CurrentRider() riderId: number,
@@ -111,18 +132,25 @@ export class RiderController {
     status: 200,
     description: 'Availability updated successfully',
     type: ApiResponseDto,
+    example: SwaggerExamples.AVAILABILITY_UPDATE_RESPONSE,
   })
   @ApiResponse({
     status: 400,
     description: 'Bad Request - Invalid availability data',
+    type: ValidationErrorResponseDto,
+    example: SwaggerExamples.VALIDATION_ERROR,
   })
   @ApiResponse({
     status: 401,
     description: 'Unauthorized - Invalid rider authentication',
+    type: UnauthorizedErrorResponseDto,
+    example: SwaggerExamples.UNAUTHORIZED_ERROR,
   })
   @ApiResponse({
     status: 404,
     description: 'Rider not found or inactive',
+    type: NotFoundErrorResponseDto,
+    example: SwaggerExamples.NOT_FOUND_ERROR,
   })
   async updateAvailability(
     @CurrentRider() riderId: number,
@@ -144,18 +172,25 @@ export class RiderController {
     status: 200,
     description: 'Profile updated successfully',
     type: ApiResponseDto,
+    example: SwaggerExamples.AVAILABILITY_UPDATE_RESPONSE,
   })
   @ApiResponse({
     status: 400,
     description: 'Bad Request - Invalid profile data',
+    type: ValidationErrorResponseDto,
+    example: SwaggerExamples.VALIDATION_ERROR,
   })
   @ApiResponse({
     status: 401,
     description: 'Unauthorized - Invalid rider authentication',
+    type: UnauthorizedErrorResponseDto,
+    example: SwaggerExamples.UNAUTHORIZED_ERROR,
   })
   @ApiResponse({
     status: 404,
     description: 'Rider not found or inactive',
+    type: NotFoundErrorResponseDto,
+    example: SwaggerExamples.NOT_FOUND_ERROR,
   })
   async updateProfile(
     @CurrentRider() riderId: number,
@@ -173,14 +208,19 @@ export class RiderController {
   @ApiResponse({
     status: 200,
     description: 'Location retrieved successfully',
+    example: SwaggerExamples.CURRENT_LOCATION,
   })
   @ApiResponse({
     status: 401,
     description: 'Unauthorized - Invalid rider authentication',
+    type: UnauthorizedErrorResponseDto,
+    example: SwaggerExamples.UNAUTHORIZED_ERROR,
   })
   @ApiResponse({
     status: 404,
     description: 'Rider not found or inactive',
+    type: NotFoundErrorResponseDto,
+    example: SwaggerExamples.NOT_FOUND_ERROR,
   })
   async getRiderLocation(@CurrentRider() riderId: number) {
     this.logger.log(`Fetching location for rider ${riderId}`);

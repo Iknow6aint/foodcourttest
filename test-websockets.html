@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test - Food Court</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .section { border: 1px solid #ccc; margin: 20px 0; padding: 20px; border-radius: 8px; }
+        .rider { background-color: #e7f3ff; }
+        .dispatch { background-color: #f0f8e7; }
+        button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+        input { padding: 5px; margin: 5px; }
+        .log { background-color: #f5f5f5; padding: 10px; height: 200px; overflow-y: scroll; font-size: 12px; }
+        .connected { color: green; font-weight: bold; }
+        .disconnected { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Test - Food Court Real-time Communication</h1>
+    
+    <!-- Rider Section -->
+    <div class="section rider">
+        <h2>Rider Client</h2>
+        <div>
+            <label>Rider ID: <input type="number" id="riderId" value="1" placeholder="Enter rider ID"></label>
+            <button id="connectRider">Connect as Rider</button>
+            <button id="disconnectRider">Disconnect</button>
+            <span id="riderStatus" class="disconnected">Disconnected</span>
+        </div>
+        
+        <div>
+            <h3>Send Location Update</h3>
+            <label>Latitude: <input type="number" id="latitude" value="37.7749" step="0.0001"></label>
+            <label>Longitude: <input type="number" id="longitude" value="-122.4194" step="0.0001"></label>
+            <label>Status: 
+                <select id="status">
+                    <option value="available">Available</option>
+                    <option value="on_delivery">On Delivery</option>
+                    <option value="offline">Offline</option>
+                </select>
+            </label>
+            <button id="sendLocation">Send Location</button>
+        </div>
+        
+        <div>
+            <h4>Rider Messages Log</h4>
+            <div id="riderLog" class="log"></div>
+        </div>
+    </div>
+
+    <!-- Dispatch Section -->
+    <div class="section dispatch">
+        <h2>Dispatch Dashboard</h2>
+        <div>
+            <button id="connectDispatch">Connect to Dispatch</button>
+            <button id="disconnectDispatch">Disconnect</button>
+            <span id="dispatchStatus" class="disconnected">Disconnected</span>
+        </div>
+        
+        <div>
+            <h3>Dispatch Actions</h3>
+            <button id="getRiderList">Get Rider List</button>
+            <button id="getStats">Get Stats</button>
+            <div>
+                <label>Send to Rider ID: <input type="number" id="targetRiderId" value="1"></label>
+                <label>Message: <input type="text" id="messageContent" value="New order assigned!" placeholder="Enter message"></label>
+                <button id="sendToRider">Send Message</button>
+            </div>
+        </div>
+
+        <div>
+            <h3>Order Assignment</h3>
+            <div>
+                <label>Rider ID: <input type="number" id="assignRiderId" value="1"></label>
+                <label>Order ID: <input type="number" id="orderId" value="123"></label>
+                <label>Description: <input type="text" id="orderDescription" value="Pizza delivery from Mario's Restaurant"></label>
+                <label>Customer: <input type="text" id="customerName" value="John Smith"></label>
+                <label>Address: <input type="text" id="deliveryAddress" value="123 Main St, Downtown"></label>
+                <label>Priority: 
+                    <select id="priority">
+                        <option value="low">Low</option>
+                        <option value="normal" selected>Normal</option>
+                        <option value="high">High</option>
+                    </select>
+                </label>
+                <button id="assignOrder">Assign Order via API</button>
+                <button id="getConnectedRiders">Get Connected Riders</button>
+                <button id="getSystemStats">Get System Statistics</button>
+            </div>
+        </div>
+        
+        <div>
+            <h4>Dispatch Messages Log</h4>
+            <div id="dispatchLog" class="log"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        let riderSocket = null;
+        let dispatchSocket = null;
+
+        // Helper function to log messages
+        function logMessage(elementId, message, type = 'info') {
+            const logElement = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const colorClass = type === 'error' ? 'style="color: red;"' : 
+                             type === 'success' ? 'style="color: green;"' : '';
+            logElement.innerHTML += `<div ${colorClass}>[${timestamp}] ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // Rider Connection Management
+        document.getElementById('connectRider').addEventListener('click', () => {
+            const riderId = document.getElementById('riderId').value;
+            if (!riderId) {
+                alert('Please enter a rider ID');
+                return;
+            }
+
+            riderSocket = io('http://localhost:3000/riders', {
+                query: {
+                    riderId: riderId
+                }
+            });
+
+            riderSocket.on('connect', () => {
+                document.getElementById('riderStatus').textContent = 'Connected';
+                document.getElementById('riderStatus').className = 'connected';
+                logMessage('riderLog', `Connected as Rider ${riderId}`, 'success');
+            });
+
+            riderSocket.on('disconnect', () => {
+                document.getElementById('riderStatus').textContent = 'Disconnected';
+                document.getElementById('riderStatus').className = 'disconnected';
+                logMessage('riderLog', 'Disconnected from server', 'error');
+            });
+
+            riderSocket.on('order_assigned', (data) => {
+                logMessage('riderLog', `Order Assigned: ${JSON.stringify(data)}`, 'info');
+            });
+
+            riderSocket.on('connection_status', (data) => {
+                logMessage('riderLog', `Connection Status: ${JSON.stringify(data)}`, 'info');
+            });
+
+            riderSocket.on('error', (error) => {
+                logMessage('riderLog', `Error: ${JSON.stringify(error)}`, 'error');
+            });
+
+            riderSocket.on('connect_error', (error) => {
+                logMessage('riderLog', `Connection Error: ${error.message}`, 'error');
+            });
+        });
+
+        document.getElementById('disconnectRider').addEventListener('click', () => {
+            if (riderSocket) {
+                riderSocket.disconnect();
+                riderSocket = null;
+            }
+        });
+
+        // Send Location Update
+        document.getElementById('sendLocation').addEventListener('click', () => {
+            if (!riderSocket || !riderSocket.connected) {
+                alert('Please connect as rider first');
+                return;
+            }
+
+            const locationData = {
+                latitude: parseFloat(document.getElementById('latitude').value),
+                longitude: parseFloat(document.getElementById('longitude').value),
+                status: document.getElementById('status').value,
+                timestamp: new Date().toISOString()
+            };
+
+            riderSocket.emit('location_update', locationData);
+            logMessage('riderLog', `Location sent: ${JSON.stringify(locationData)}`, 'info');
+        });
+
+        // Dispatch Connection Management
+        document.getElementById('connectDispatch').addEventListener('click', () => {
+            dispatchSocket = io('http://localhost:3000/dispatch');
+
+            dispatchSocket.on('connect', () => {
+                document.getElementById('dispatchStatus').textContent = 'Connected';
+                document.getElementById('dispatchStatus').className = 'connected';
+                logMessage('dispatchLog', 'Connected to Dispatch Dashboard', 'success');
+            });
+
+            dispatchSocket.on('disconnect', () => {
+                document.getElementById('dispatchStatus').textContent = 'Disconnected';
+                document.getElementById('dispatchStatus').className = 'disconnected';
+                logMessage('dispatchLog', 'Disconnected from server', 'error');
+            });
+
+            dispatchSocket.on('location_update', (data) => {
+                logMessage('dispatchLog', `Rider Location Update: ${JSON.stringify(data)}`, 'info');
+            });
+
+            dispatchSocket.on('rider_connected', (data) => {
+                logMessage('dispatchLog', `Rider Connected: ${JSON.stringify(data)}`, 'success');
+            });
+
+            dispatchSocket.on('rider_disconnected', (data) => {
+                logMessage('dispatchLog', `Rider Disconnected: ${JSON.stringify(data)}`, 'error');
+            });
+
+            dispatchSocket.on('rider_list', (data) => {
+                logMessage('dispatchLog', `Rider List: ${JSON.stringify(data)}`, 'info');
+            });
+
+            dispatchSocket.on('stats', (data) => {
+                logMessage('dispatchLog', `Stats: ${JSON.stringify(data)}`, 'info');
+            });
+
+            dispatchSocket.on('error', (error) => {
+                logMessage('dispatchLog', `Error: ${JSON.stringify(error)}`, 'error');
+            });
+
+            dispatchSocket.on('connect_error', (error) => {
+                logMessage('dispatchLog', `Connection Error: ${error.message}`, 'error');
+            });
+        });
+
+        document.getElementById('disconnectDispatch').addEventListener('click', () => {
+            if (dispatchSocket) {
+                dispatchSocket.disconnect();
+                dispatchSocket = null;
+            }
+        });
+
+        // Dispatch Actions
+        document.getElementById('getRiderList').addEventListener('click', () => {
+            if (!dispatchSocket || !dispatchSocket.connected) {
+                alert('Please connect to dispatch first');
+                return;
+            }
+            dispatchSocket.emit('get_rider_list');
+            logMessage('dispatchLog', 'Requested rider list', 'info');
+        });
+
+        document.getElementById('getStats').addEventListener('click', () => {
+            if (!dispatchSocket || !dispatchSocket.connected) {
+                alert('Please connect to dispatch first');
+                return;
+            }
+            dispatchSocket.emit('get_stats');
+            logMessage('dispatchLog', 'Requested stats', 'info');
+        });
+
+        document.getElementById('sendToRider').addEventListener('click', () => {
+            if (!dispatchSocket || !dispatchSocket.connected) {
+                alert('Please connect to dispatch first');
+                return;
+            }
+
+            const targetRiderId = document.getElementById('targetRiderId').value;
+            const messageContent = document.getElementById('messageContent').value;
+
+            if (!targetRiderId || !messageContent) {
+                alert('Please enter both rider ID and message');
+                return;
+            }
+
+            const messageData = {
+                riderId: parseInt(targetRiderId),
+                message: messageContent,
+                type: 'order_assigned',
+                timestamp: new Date().toISOString()
+            };
+
+            dispatchSocket.emit('send_to_rider', messageData);
+            logMessage('dispatchLog', `Message sent to rider ${targetRiderId}: ${messageContent}`, 'info');
+        });
+
+        // Order Assignment API Functions
+        document.getElementById('assignOrder').addEventListener('click', async () => {
+            const riderId = document.getElementById('assignRiderId').value;
+            const orderId = document.getElementById('orderId').value;
+            const orderDescription = document.getElementById('orderDescription').value;
+            const customerName = document.getElementById('customerName').value;
+            const deliveryAddress = document.getElementById('deliveryAddress').value;
+            const priority = document.getElementById('priority').value;
+
+            if (!riderId || !orderId || !orderDescription || !customerName || !deliveryAddress) {
+                alert('Please fill in all order assignment fields');
+                return;
+            }
+
+            const orderData = {
+                order_id: parseInt(orderId),
+                order_description: orderDescription,
+                customer_name: customerName,
+                delivery_address: deliveryAddress,
+                priority: priority
+            };
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/dispatch/riders/${riderId}/assign-order`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(orderData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    logMessage('dispatchLog', `Order assigned successfully: ${JSON.stringify(result)}`, 'success');
+                } else {
+                    logMessage('dispatchLog', `Order assignment failed: ${JSON.stringify(result)}`, 'error');
+                }
+            } catch (error) {
+                logMessage('dispatchLog', `Error assigning order: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('getConnectedRiders').addEventListener('click', async () => {
+            try {
+                const response = await fetch('http://localhost:3000/api/dispatch/riders/list', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    logMessage('dispatchLog', `Connected riders: ${JSON.stringify(result, null, 2)}`, 'info');
+                } else {
+                    logMessage('dispatchLog', `Failed to get riders: ${JSON.stringify(result)}`, 'error');
+                }
+            } catch (error) {
+                logMessage('dispatchLog', `Error getting riders: ${error.message}`, 'error');
+            }
+        });
+
+        document.getElementById('getSystemStats').addEventListener('click', async () => {
+            try {
+                const response = await fetch('http://localhost:3000/api/dispatch/stats', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    logMessage('dispatchLog', `System statistics: ${JSON.stringify(result, null, 2)}`, 'info');
+                } else {
+                    logMessage('dispatchLog', `Failed to get stats: ${JSON.stringify(result)}`, 'error');
+                }
+            } catch (error) {
+                logMessage('dispatchLog', `Error getting stats: ${error.message}`, 'error');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Rider Test</title>
+</head>
+<body>
+    <h1>Simple Rider Connection Test</h1>
+    <button onclick="testRiderConnection()">Test Rider Connection</button>
+    <div id="log"></div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+        }
+
+        function testRiderConnection() {
+            log('Attempting to connect to /riders namespace...');
+            
+            const socket = io('http://localhost:3000/riders', {
+                query: {
+                    riderId: '1'
+                }
+            });
+
+            socket.on('connect', () => {
+                log('✅ Connected to /riders namespace!');
+            });
+
+            socket.on('disconnect', (reason) => {
+                log(`❌ Disconnected: ${reason}`);
+            });
+
+            socket.on('connect_error', (error) => {
+                log(`❌ Connection error: ${error.message}`);
+            });
+
+            socket.on('error', (data) => {
+                log(`❌ Socket error: ${JSON.stringify(data)}`);
+            });
+
+            socket.on('message', (data) => {
+                log(`📨 Message received: ${JSON.stringify(data)}`);
+            });
+        }
+    </script>
+</body>
+</html>
