@@ -10,6 +10,8 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger, UseGuards } from '@nestjs/common';
 import { ConnectionManagerService } from './connection-manager.service';
+import { OrderProximityService } from '../services/order-proximity.service';
+import { KnexService } from '../database/knex.service';
 import {
   WebSocketMessageDto,
   LocationUpdateMessageDto,
@@ -29,7 +31,11 @@ export class RiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly logger = new Logger(RiderGateway.name);
 
-  constructor(private readonly connectionManager: ConnectionManagerService) {}
+  constructor(
+    private readonly connectionManager: ConnectionManagerService,
+    private readonly orderProximityService: OrderProximityService,
+    private readonly knexService: KnexService,
+  ) {}
 
   /**
    * Handle new rider connection
@@ -59,6 +65,9 @@ export class RiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // Register the connection
       this.connectionManager.addRiderConnection(riderId, client);
+
+      // Mark rider as online in database
+      await this.updateRiderStatus(riderId, true);
 
       // Store rider ID in socket data for easy access
       client.data.riderId = riderId;
@@ -90,11 +99,15 @@ export class RiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /**
    * Handle rider disconnection
    */
-  handleDisconnect(client: Socket) {
+  async handleDisconnect(client: Socket) {
     const riderId = client.data.riderId;
 
     if (riderId) {
       this.connectionManager.removeRiderConnection(riderId);
+      
+      // Mark rider as offline in database
+      await this.updateRiderStatus(riderId, false);
+      
       this.logger.log(`Rider ${riderId} disconnected from gateway`);
     } else {
       this.logger.log('Unknown client disconnected from gateway');
@@ -149,7 +162,15 @@ export class RiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // Broadcast to dispatch dashboards
       this.connectionManager.broadcastLocationUpdate(locationMessage);
-      this.logger.log(`LOCATION BROADCASTED: Rider ${riderId} at (${data.latitude}, ${data.longitude}) sent to dispatch dashboards`);
+      this.logger.log(
+        `LOCATION BROADCASTED: Rider ${riderId} at (${data.latitude}, ${data.longitude}) sent to dispatch dashboards`,
+      );
+
+      // Trigger proximity recalculation for nearby orders
+      await this.orderProximityService.updateRiderLocationAndRecalculate(
+        riderId,
+        { latitude: data.latitude, longitude: data.longitude }
+      );
 
       // Acknowledge the update
       this.sendMessage(client, {
@@ -340,6 +361,27 @@ export class RiderGateway implements OnGatewayConnection, OnGatewayDisconnect {
       data.longitude >= -180 &&
       data.longitude <= 180
     );
+  }
+
+  /**
+   * Update rider availability status in database
+   */
+  private async updateRiderStatus(
+    riderId: number,
+    isAvailable: boolean,
+  ): Promise<void> {
+    try {
+      await this.knexService.getKnex()('riders').where('id', riderId).update({
+        is_available: isAvailable,
+        updated_at: new Date(),
+      });
+
+      this.logger.debug(
+        `Rider ${riderId} status updated to ${isAvailable ? 'online' : 'offline'}`,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to update rider ${riderId} status:`, error);
+    }
   }
 
   /**

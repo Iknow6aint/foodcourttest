@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Proximity Search Flow Test</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        h2 {
+            color: #4a5568;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .step {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4299e1;
+        }
+        
+        .step h3 {
+            margin: 0 0 10px 0;
+            color: #2d3748;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #4299e1, #3182ce);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        button:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-connected { background-color: #48bb78; }
+        .status-disconnected { background-color: #f56565; }
+        .status-connecting { background-color: #ed8936; }
+        
+        .log {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        
+        .log .timestamp {
+            color: #68d391;
+        }
+        
+        .log .info { color: #63b3ed; }
+        .log .success { color: #68d391; }
+        .log .warning { color: #f6ad55; }
+        .log .error { color: #fc8181; }
+        
+        input, select {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        .rider-info, .order-info {
+            background: #edf2f7;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        
+        .notification-banner {
+            background: #fed7d7;
+            border: 1px solid #feb2b2;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 10px 0;
+            color: #c53030;
+        }
+        
+        .proximity-results {
+            background: #e6fffa;
+            border: 1px solid #81e6d9;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .rider-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .rider-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .distance-badge {
+            background: #4299e1;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌍 Complete Geospatial Proximity Search Flow Test</h1>
+    
+    <div class="container">
+        <!-- Rider Panel -->
+        <div class="panel">
+            <h2>🏍️ Rider Interface</h2>
+            
+            <div class="step">
+                <h3>Step 1: Connect as Rider</h3>
+                <label>Rider ID:</label>
+                <select id="riderId">
+                    <option value="20">Rider 20 (James Wilson - 0km)</option>
+                    <option value="21">Rider 21 (Sarah Johnson - 1.8km)</option>
+                    <option value="22">Rider 22 (Michael Chen - 3.9km)</option>
+                    <option value="23">Rider 23 (Amara Okafor - 5.2km)</option>
+                    <option value="24">Rider 24 (David Adebayo - 6.8km)</option>
+                    <option value="25">Rider 25 (Grace Enyeribe - 8.1km)</option>
+                    <option value="26">Rider 26 (Peter Okolie - 9.5km)</option>
+                </select>
+                <button onclick="connectRider()">Connect Rider</button>
+                <div class="rider-info">
+                    <span class="status-indicator status-disconnected" id="riderStatus"></span>
+                    <span id="riderStatusText">Disconnected</span>
+                </div>
+            </div>
+            
+            <div class="step">
+                <h3>Step 2: Update Location</h3>
+                <p>Simulate rider movement to test proximity recalculation</p>
+                <label>Latitude:</label>
+                <input type="number" id="riderLat" value="6.453236" step="0.000001">
+                <label>Longitude:</label>
+                <input type="number" id="riderLng" value="3.542878" step="0.000001">
+                <button onclick="updateRiderLocation()">Update Location</button>
+                <div>
+                    <button onclick="moveToRestaurant()">Move to Restaurant (0km)</button>
+                    <button onclick="moveNear()">Move Near (1km)</button>
+                    <button onclick="moveFar()">Move Far (6km)</button>
+                </div>
+            </div>
+            
+            <div class="step">
+                <h3>Step 3: Receive Order Notifications</h3>
+                <div id="orderNotifications">
+                    <p>No order notifications yet...</p>
+                </div>
+            </div>
+            
+            <div class="log" id="riderLog">
+                <div>🏍️ Rider console ready...</div>
+            </div>
+        </div>
+        
+        <!-- Dispatch Panel -->
+        <div class="panel">
+            <h2>🏪 Dispatch/Restaurant Interface</h2>
+            
+            <div class="step">
+                <h3>Step 1: Connect as Dispatch</h3>
+                <button onclick="connectDispatch()">Connect Dispatch Dashboard</button>
+                <div class="rider-info">
+                    <span class="status-indicator status-disconnected" id="dispatchStatus"></span>
+                    <span id="dispatchStatusText">Disconnected</span>
+                </div>
+            </div>
+            
+            <div class="step">
+                <h3>Step 2: Create Order & Trigger Proximity Search</h3>
+                <p>This will automatically find nearby riders and send them notifications</p>
+                <label>Restaurant Location:</label>
+                <input type="number" id="restaurantLat" value="6.453236" step="0.000001">
+                <input type="number" id="restaurantLng" value="3.542878" step="0.000001">
+                <button onclick="createOrder()">Create Order (RabbitMQ)</button>
+                <button onclick="manualProximitySearch()">Manual Proximity Search</button>
+            </div>
+            
+            <div class="step">
+                <h3>Step 3: View Available Riders & Assign Order</h3>
+                <div id="nearbyRiders">
+                    <p>No proximity search results yet...</p>
+                </div>
+                <button onclick="getConnectedRiders()">Get Connected Riders</button>
+            </div>
+            
+            <div class="step">
+                <h3>Step 4: Assign Order to Rider</h3>
+                <label>Calculated Order ID:</label>
+                <input type="number" id="calculatedOrderId" value="1">
+                <label>Assign to Rider ID:</label>
+                <select id="assignRiderId">
+                    <option value="20">Rider 20 (James Wilson - 0km)</option>
+                    <option value="21">Rider 21 (Sarah Johnson - 1.8km)</option>
+                    <option value="22">Rider 22 (Michael Chen - 3.9km)</option>
+                    <option value="23">Rider 23 (Amara Okafor - 5.2km)</option>
+                    <option value="24">Rider 24 (David Adebayo - 6.8km)</option>
+                    <option value="25">Rider 25 (Grace Enyeribe - 8.1km)</option>
+                    <option value="26">Rider 26 (Peter Okolie - 9.5km)</option>
+                </select>
+                <button onclick="assignOrder()">Assign Order</button>
+            </div>
+            
+            <div class="log" id="dispatchLog">
+                <div>🏪 Dispatch console ready...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let riderSocket = null;
+        let dispatchSocket = null;
+        let currentRiderId = null;
+        
+        // Logging functions
+        function logToRider(message, type = 'info') {
+            const log = document.getElementById('riderLog');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `<div><span class="timestamp">[${timestamp}]</span> <span class="${type}">${message}</span></div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function logToDispatch(message, type = 'info') {
+            const log = document.getElementById('dispatchLog');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `<div><span class="timestamp">[${timestamp}]</span> <span class="${type}">${message}</span></div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        // Rider functions
+        function connectRider() {
+            const riderId = document.getElementById('riderId').value;
+            currentRiderId = riderId;
+            
+            if (riderSocket) {
+                riderSocket.disconnect();
+            }
+            
+            riderSocket = io('http://localhost:3000/riders', {
+                query: { riderId: riderId }
+            });
+            
+            riderSocket.on('connect', () => {
+                logToRider(`🟢 Connected as Rider ${riderId}`, 'success');
+                document.getElementById('riderStatus').className = 'status-indicator status-connected';
+                document.getElementById('riderStatusText').textContent = `Connected as Rider ${riderId}`;
+            });
+            
+            riderSocket.on('disconnect', () => {
+                logToRider('🔴 Disconnected from server', 'error');
+                document.getElementById('riderStatus').className = 'status-indicator status-disconnected';
+                document.getElementById('riderStatusText').textContent = 'Disconnected';
+            });
+            
+            riderSocket.on('message', (data) => {
+                logToRider(`📩 Message received: ${JSON.stringify(data, null, 2)}`, 'info');
+                
+                if (data.type === 'new_order_notification') {
+                    showOrderNotification(data.data);
+                }
+            });
+            
+            riderSocket.on('error', (error) => {
+                logToRider(`❌ Error: ${JSON.stringify(error)}`, 'error');
+            });
+        }
+        
+        function updateRiderLocation() {
+            if (!riderSocket) {
+                logToRider('❌ Not connected! Connect first.', 'error');
+                return;
+            }
+            
+            const lat = parseFloat(document.getElementById('riderLat').value);
+            const lng = parseFloat(document.getElementById('riderLng').value);
+            
+            riderSocket.emit('location_update', {
+                latitude: lat,
+                longitude: lng
+            });
+            
+            logToRider(`📍 Location updated: (${lat}, ${lng})`, 'success');
+        }
+        
+        function moveToRestaurant() {
+            document.getElementById('riderLat').value = '6.453236';
+            document.getElementById('riderLng').value = '3.542878';
+            updateRiderLocation();
+        }
+        
+        function moveNear() {
+            document.getElementById('riderLat').value = '6.463236';
+            document.getElementById('riderLng').value = '3.552878';
+            updateRiderLocation();
+        }
+        
+        function moveFar() {
+            document.getElementById('riderLat').value = '6.513236';
+            document.getElementById('riderLng').value = '3.602878';
+            updateRiderLocation();
+        }
+        
+        function showOrderNotification(orderData) {
+            const notifications = document.getElementById('orderNotifications');
+            notifications.innerHTML = `
+                <div class="notification-banner">
+                    <h4>🔔 New Order Notification!</h4>
+                    <p><strong>Order ID:</strong> ${orderData.orderId}</p>
+                    <p><strong>Restaurant:</strong> ${orderData.restaurantName}</p>
+                    <p><strong>Customer:</strong> ${orderData.customerName}</p>
+                    <p><strong>Distance:</strong> ${orderData.distance}km</p>
+                    <p><strong>Amount:</strong> $${orderData.totalAmount}</p>
+                    <button onclick="acceptOrder(${orderData.orderId})">Accept Order</button>
+                    <button onclick="rejectOrder(${orderData.orderId})">Reject Order</button>
+                </div>
+            `;
+        }
+        
+        // Dispatch functions
+        function connectDispatch() {
+            if (dispatchSocket) {
+                dispatchSocket.disconnect();
+            }
+            
+            dispatchSocket = io('http://localhost:3000/dispatch');
+            
+            dispatchSocket.on('connect', () => {
+                logToDispatch('🟢 Connected as Dispatch Dashboard', 'success');
+                document.getElementById('dispatchStatus').className = 'status-indicator status-connected';
+                document.getElementById('dispatchStatusText').textContent = 'Connected as Dispatch';
+            });
+            
+            dispatchSocket.on('disconnect', () => {
+                logToDispatch('🔴 Disconnected from server', 'error');
+                document.getElementById('dispatchStatus').className = 'status-indicator status-disconnected';
+                document.getElementById('dispatchStatusText').textContent = 'Disconnected';
+            });
+            
+            dispatchSocket.on('message', (data) => {
+                logToDispatch(`📩 Message: ${JSON.stringify(data, null, 2)}`, 'info');
+                
+                if (data.type === 'proximity_search_results') {
+                    showProximityResults(data.data);
+                }
+                
+                if (data.type === 'location_update') {
+                    logToDispatch(`📍 Rider ${data.data.riderId} moved to (${data.data.latitude}, ${data.data.longitude})`, 'info');
+                }
+            });
+        }
+        
+        function createOrder() {
+            const lat = parseFloat(document.getElementById('restaurantLat').value);
+            const lng = parseFloat(document.getElementById('restaurantLng').value);
+            
+            const orderData = {
+                orderId: Math.floor(Math.random() * 1000),
+                restaurantName: "Test Restaurant",
+                customerLocation: {
+                    lat: lat,
+                    lng: lng
+                }
+            };
+            
+            fetch('http://localhost:3000/rabbitmq/test-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(orderData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                logToDispatch(`🚀 Order created via RabbitMQ: ${JSON.stringify(data)}`, 'success');
+            })
+            .catch(error => {
+                logToDispatch(`❌ Error creating order: ${error}`, 'error');
+            });
+        }
+        
+        function manualProximitySearch() {
+            const orderId = 1; // Test with existing order
+            
+            fetch(`http://localhost:3000/api/dispatch/orders/${orderId}/proximity-search`)
+            .then(response => response.json())
+            .then(data => {
+                logToDispatch(`🔍 Manual proximity search: ${JSON.stringify(data, null, 2)}`, 'success');
+                if (data.data) {
+                    showProximityResults(data.data);
+                }
+            })
+            .catch(error => {
+                logToDispatch(`❌ Error in proximity search: ${error}`, 'error');
+            });
+        }
+        
+        function showProximityResults(data) {
+            const container = document.getElementById('nearbyRiders');
+            
+            if (!data.riders || data.riders.length === 0) {
+                container.innerHTML = '<p>No nearby riders found</p>';
+                return;
+            }
+            
+            const ridersHtml = data.riders.map(rider => `
+                <div class="rider-card">
+                    <div>
+                        <strong>${rider.name}</strong> (ID: ${rider.id})
+                        <br>Status: ${rider.isOnline ? '🟢 Online' : '🔴 Offline'}
+                        ${rider.isAvailable ? '✅ Available' : '❌ Busy'}
+                    </div>
+                    <div>
+                        <span class="distance-badge">${rider.distance}km</span>
+                        <button onclick="assignOrderToRider(${rider.id})">Assign</button>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = `
+                <div class="proximity-results">
+                    <h4>🎯 Proximity Search Results</h4>
+                    <p>Found ${data.totalNearbyRiders} riders within ${data.searchRadius}km</p>
+                    <p>Online: ${data.onlineRiders} | Offline: ${data.offlineRiders}</p>
+                    <div class="rider-list">
+                        ${ridersHtml}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function getConnectedRiders() {
+            fetch('http://localhost:3000/api/dispatch/riders/list', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                logToDispatch(`👥 Connected riders: ${JSON.stringify(data, null, 2)}`, 'info');
+            })
+            .catch(error => {
+                logToDispatch(`❌ Error getting riders: ${error}`, 'error');
+            });
+        }
+        
+        function assignOrder() {
+            const calculatedOrderId = parseInt(document.getElementById('calculatedOrderId').value);
+            const riderId = parseInt(document.getElementById('assignRiderId').value);
+            
+            fetch('http://localhost:3000/api/dispatch/assign-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    calculatedOrderId: calculatedOrderId,
+                    riderId: riderId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                logToDispatch(`📋 Order assignment: ${JSON.stringify(data, null, 2)}`, 'success');
+            })
+            .catch(error => {
+                logToDispatch(`❌ Error assigning order: ${error}`, 'error');
+            });
+        }
+        
+        function assignOrderToRider(riderId) {
+            document.getElementById('assignRiderId').value = riderId;
+            assignOrder();
+        }
+        
+        function acceptOrder(orderId) {
+            logToRider(`✅ Accepted order ${orderId}`, 'success');
+        }
+        
+        function rejectOrder(orderId) {
+            logToRider(`❌ Rejected order ${orderId}`, 'warning');
+        }
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            logToRider('🏍️ Rider interface ready');
+            logToDispatch('🏪 Dispatch interface ready');
+        });
+    </script>
+</body>
+</html>

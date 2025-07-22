@@ -7,14 +7,11 @@ import {
   Logger,
   Param,
   ParseIntPipe,
+  Get,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { DispatchService } from '../services/dispatch.service';
+import { OrderProximityService } from '../services/order-proximity.service';
 import { OrderAssignmentDto } from '../dto/rider.dto';
 import { ApiResponseDto } from '../dto/rider-response.dto';
 import {
@@ -28,7 +25,10 @@ import { SwaggerExamples } from '../dto/swagger-examples';
 export class DispatchController {
   private readonly logger = new Logger(DispatchController.name);
 
-  constructor(private readonly dispatchService: DispatchService) {}
+  constructor(
+    private readonly dispatchService: DispatchService,
+    private readonly orderProximityService: OrderProximityService,
+  ) {}
 
   /**
    * Assign order to rider via API (also broadcasts via WebSocket)
@@ -139,5 +139,112 @@ export class DispatchController {
       data: stats,
       timestamp: new Date(),
     };
+  }
+
+  /**
+   * Test proximity search for a specific order
+   */
+  @Get('orders/:orderId/proximity-search')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get proximity search results for order',
+    description:
+      'Find all available riders within 5km of the restaurant location for the specified order',
+  })
+  @ApiParam({
+    name: 'orderId',
+    description: 'Order ID to search nearby riders for',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Proximity search results retrieved successfully',
+    type: ApiResponseDto,
+  })
+  async getOrderProximitySearch(
+    @Param('orderId', ParseIntPipe) orderId: number,
+  ) {
+    this.logger.log(`Getting proximity search results for order ${orderId}`);
+
+    const result =
+      await this.orderProximityService.getOrderProximityResults(orderId);
+
+    if (!result) {
+      return {
+        success: false,
+        message: 'Order not found or missing location data',
+        data: null,
+        timestamp: new Date(),
+      };
+    }
+
+    return {
+      success: true,
+      message: 'Proximity search completed successfully',
+      data: {
+        orderId: result.orderId,
+        restaurantLocation: result.restaurantLocation,
+        nearbyRiders: result.nearbyRiders,
+        searchRadius: result.searchRadius,
+        totalRidersFound: result.totalRidersFound,
+        connectedRidersCount: result.connectedRidersCount,
+      },
+      timestamp: new Date(),
+    };
+  }
+
+  /**
+   * Assign calculated order to rider (Alternative endpoint for frontend)
+   */
+  @Post('assign-order')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Assign calculated order to rider',
+    description: 'Assigns a calculated order to a specific rider and notifies them via WebSocket',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Order assigned successfully',
+    type: ApiResponseDto,
+  })
+  async assignCalculatedOrderToRider(
+    @Body() assignmentData: { calculatedOrderId: number; riderId: number },
+  ) {
+    this.logger.log(
+      `Assigning calculated order ${assignmentData.calculatedOrderId} to rider ${assignmentData.riderId}`,
+    );
+
+    try {
+      // Create order assignment data in the format expected by dispatch service
+      const orderData = {
+        order_id: assignmentData.calculatedOrderId,
+        order_description: 'Food delivery order',
+        customer_name: 'Test Customer',
+        delivery_address: 'Test Address',
+        pickup_time: new Date().toISOString(),
+        delivery_instructions: 'Handle with care',
+      };
+
+      const result = await this.dispatchService.assignOrderToRider(
+        assignmentData.riderId,
+        orderData,
+      );
+
+      return {
+        success: true,
+        message: 'Order assigned successfully',
+        data: result,
+        timestamp: new Date(),
+      };
+    } catch (error) {
+      this.logger.error('Error assigning order to rider:', error.message);
+      
+      return {
+        success: false,
+        message: error.message || 'Failed to assign order',
+        data: null,
+        timestamp: new Date(),
+      };
+    }
   }
 }

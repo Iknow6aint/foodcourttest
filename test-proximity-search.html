@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geospatial Proximity Search Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section { 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 4px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        .warning { background-color: #fff3cd; border-color: #ffeeba; }
+        button { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        pre { 
+            background: #f8f9fa; 
+            padding: 10px; 
+            border-radius: 4px; 
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .coordinate-display {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .distance-info {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .rider-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .rider-card {
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        .online { border-left: 4px solid #28a745; }
+        .offline { border-left: 4px solid #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌍 Geospatial Proximity Search Test</h1>
+        <p>Test the proximity search functionality that finds riders within 5km of restaurant locations when orders are created.</p>
+        
+        <div class="test-section info">
+            <h3>📍 System Status</h3>
+            <div id="systemStatus">Loading...</div>
+            <button onclick="checkSystemStatus()">Refresh Status</button>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 Test Proximity Search</h3>
+            <p>Test proximity search for existing orders in the database:</p>
+            <input type="number" id="orderIdInput" placeholder="Enter Order ID (e.g., 1)" value="1">
+            <button onclick="testProximitySearch()">Test Proximity Search</button>
+            <div id="proximityResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📡 Test RabbitMQ Order Creation</h3>
+            <p>Simulate order creation that triggers automatic proximity search:</p>
+            <button onclick="simulateOrderCreation()">Simulate Order Creation</button>
+            <div id="rabbitMQResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🏍️ Sample Riders & Orders</h3>
+            <p>View sample data to understand the test environment:</p>
+            <button onclick="loadSampleData()">Load Sample Data</button>
+            <div id="sampleDataResults"></div>
+        </div>
+
+        <div class="test-section warning">
+            <h3>📝 Test Scenarios</h3>
+            <ul>
+                <li><strong>Proximity Calculation:</strong> Uses Haversine formula for accurate distance calculation</li>
+                <li><strong>Search Radius:</strong> Default 5km radius around restaurant location</li>
+                <li><strong>Real-time Updates:</strong> Location updates trigger proximity recalculation</li>
+                <li><strong>WebSocket Integration:</strong> Results broadcast to dispatch dashboard</li>
+                <li><strong>Database Optimization:</strong> Bounding box queries for performance</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000';
+
+        async function checkSystemStatus() {
+            try {
+                document.getElementById('systemStatus').innerHTML = '<em>Checking system status...</em>';
+                
+                const response = await fetch(`${API_BASE}/api/dispatch/stats`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                document.getElementById('systemStatus').innerHTML = `
+                    <div class="success">
+                        <strong>✅ System Online</strong><br>
+                        📊 Orders: ${data.data.orders.total} total, ${data.data.orders.active} active<br>
+                        🏍️ Riders: ${data.data.riders.total} total, ${data.data.riders.available} available, ${data.data.riders.connected} connected<br>
+                        ⏱️ Uptime: ${Math.round(data.data.system.uptime / 60)} minutes
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('systemStatus').innerHTML = `
+                    <div class="error">❌ Error checking system status: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function testProximitySearch() {
+            const orderId = document.getElementById('orderIdInput').value;
+            if (!orderId) {
+                alert('Please enter an Order ID');
+                return;
+            }
+
+            try {
+                document.getElementById('proximityResults').innerHTML = '<em>🔍 Searching for nearby riders...</em>';
+                
+                const response = await fetch(`${API_BASE}/api/dispatch/orders/${orderId}/proximity-search`);
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    document.getElementById('proximityResults').innerHTML = `
+                        <div class="warning">⚠️ ${result.message}</div>
+                    `;
+                    return;
+                }
+
+                const data = result.data;
+                const resultHtml = `
+                    <div class="success">
+                        <h4>🎯 Proximity Search Results for Order #${data.orderId}</h4>
+                        <p><strong>📍 Restaurant Location:</strong> 
+                           <span class="coordinate-display">
+                               ${data.restaurantLocation.latitude.toFixed(6)}, ${data.restaurantLocation.longitude.toFixed(6)}
+                           </span>
+                        </p>
+                        <p><strong>🔍 Search Radius:</strong> ${data.searchRadius}km</p>
+                        <p><strong>📊 Results:</strong> ${data.totalRidersFound} riders found, ${data.connectedRidersCount} connected</p>
+                        
+                        <div class="rider-list">
+                            ${data.nearbyRiders.map(rider => `
+                                <div class="rider-card ${rider.isConnected ? 'online' : 'offline'}">
+                                    <strong>${rider.name}</strong> ${rider.isConnected ? '🟢 Online' : '🔴 Offline'}<br>
+                                    <small>ID: ${rider.id} | Phone: ${rider.phone}</small><br>
+                                    <span class="coordinate-display">
+                                        ${rider.currentLocation.latitude.toFixed(6)}, ${rider.currentLocation.longitude.toFixed(6)}
+                                    </span><br>
+                                    <span class="distance-info">📏 ${rider.distance.toFixed(2)}km away</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        ${data.nearbyRiders.length === 0 ? '<p class="warning">No riders found within search radius</p>' : ''}
+                    </div>
+                `;
+                
+                document.getElementById('proximityResults').innerHTML = resultHtml;
+                
+            } catch (error) {
+                document.getElementById('proximityResults').innerHTML = `
+                    <div class="error">❌ Error testing proximity search: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function simulateOrderCreation() {
+            try {
+                document.getElementById('rabbitMQResults').innerHTML = '<em>📡 Simulating order creation...</em>';
+                
+                const response = await fetch(`${API_BASE}/rabbitmq/test-order`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        orderId: Math.floor(Math.random() * 10000) + 1000,
+                        restaurantName: 'Test Restaurant',
+                        customerLocation: {
+                            lat: 14.5995, // Manila coordinates
+                            lng: 120.9842
+                        }
+                    })
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const result = await response.json();
+                
+                document.getElementById('rabbitMQResults').innerHTML = `
+                    <div class="success">
+                        <h4>📡 RabbitMQ Order Simulation Complete</h4>
+                        <p><strong>✅ Status:</strong> ${result.message}</p>
+                        <p><strong>📦 Order ID:</strong> ${result.data?.orderId || 'N/A'}</p>
+                        <p><strong>⏰ Processed At:</strong> ${new Date().toLocaleString()}</p>
+                        <p><em>💡 This should have triggered automatic proximity search in the background. Check the application logs!</em></p>
+                    </div>
+                `;
+                
+            } catch (error) {
+                document.getElementById('rabbitMQResults').innerHTML = `
+                    <div class="error">❌ Error simulating order creation: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function loadSampleData() {
+            try {
+                document.getElementById('sampleDataResults').innerHTML = '<em>📊 Loading sample data...</em>';
+                
+                // This would ideally call an endpoint to get sample riders and orders
+                // For now, we'll show what the system expects
+                
+                document.getElementById('sampleDataResults').innerHTML = `
+                    <div class="info">
+                        <h4>📋 Expected Data Structure</h4>
+                        <p><strong>Riders Table:</strong> Contains id, name, phone, current_latitude, current_longitude, is_available</p>
+                        <p><strong>Orders Table:</strong> Contains id, calculated_order_data (JSON with lat/lng)</p>
+                        <p><strong>Sample Manila Coordinates:</strong></p>
+                        <ul>
+                            <li>Makati: 14.5547, 121.0244</li>
+                            <li>BGC: 14.5514, 121.0498</li>
+                            <li>Quezon City: 14.6760, 121.0437</li>
+                            <li>Manila: 14.5995, 120.9842</li>
+                        </ul>
+                        <p><em>💡 Add sample riders with these coordinates to test proximity search!</em></p>
+                    </div>
+                `;
+                
+            } catch (error) {
+                document.getElementById('sampleDataResults').innerHTML = `
+                    <div class="error">❌ Error loading sample data: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Auto-check system status on page load
+        window.onload = function() {
+            checkSystemStatus();
+        };
+    </script>
+</body>
+</html>

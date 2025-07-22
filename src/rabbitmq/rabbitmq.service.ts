@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { ORDER_QUEUE, MessageType } from './queue.constants';
 import { rabbitMQConfig } from './rabbitmq.config';
+import { OrderProximityService } from '../services/order-proximity.service';
+import { KnexService } from '../database/knex.service';
 
 export interface OrderMessage {
   type: MessageType;
@@ -22,6 +24,11 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
   private channel: any = null;
   private isConnected = false;
   private reconnectAttempts = 0;
+
+  constructor(
+    private readonly orderProximityService: OrderProximityService,
+    private readonly knex: KnexService,
+  ) {}
 
   async onModuleInit() {
     // Don't throw error on connection failure, just keep trying in background
@@ -163,7 +170,8 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
           this.logger.log(
             `🎉 Processing new order creation for Order #${orderMessage.orderId}`,
           );
-          // Add any specific business logic for order creation here
+          // Trigger proximity search for the new order
+          await this.triggerProximitySearch(orderMessage);
           break;
 
         case MessageType.ORDER_UPDATED:
@@ -186,6 +194,66 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       this.logger.error(`Failed to process order message:`, error.message);
       throw error;
+    }
+  }
+
+  /**
+   * Trigger proximity search for new order
+   */
+  private async triggerProximitySearch(orderMessage: OrderMessage): Promise<void> {
+    try {
+      this.logger.log(`🔍 TRIGGERING PROXIMITY SEARCH for Order #${orderMessage.orderId}`);
+
+      // Check if we have location data in the message itself (for testing)
+      if (orderMessage.orderData?.customerLocation?.lat && orderMessage.orderData?.customerLocation?.lng) {
+        const restaurantLocation = {
+          latitude: orderMessage.orderData.customerLocation.lat,
+          longitude: orderMessage.orderData.customerLocation.lng,
+        };
+
+        this.logger.log(
+          `📍 Using location from message: (${restaurantLocation.latitude}, ${restaurantLocation.longitude})`
+        );
+
+        // Perform proximity search directly with location data
+        const result = await this.orderProximityService.performOrderProximitySearch({
+          orderId: orderMessage.orderId,
+          restaurantLocation,
+        });
+
+        this.logger.log(
+          `✅ Direct proximity search completed for Order #${orderMessage.orderId}:\n` +
+          `   → Found ${result.totalRidersFound} nearby riders\n` +
+          `   → ${result.connectedRidersCount} riders are currently online\n` +
+          `   → Search radius: ${result.searchRadius}km`
+        );
+
+        return;
+      }
+
+      // Fallback: Try to get order details from database (for real orders)
+      const result = await this.orderProximityService.getOrderProximityResults(
+        orderMessage.orderId
+      );
+
+      if (result) {
+        this.logger.log(
+          `✅ Database proximity search completed for Order #${orderMessage.orderId}:\n` +
+          `   → Found ${result.totalRidersFound} nearby riders\n` +
+          `   → ${result.connectedRidersCount} riders are currently online\n` +
+          `   → Search radius: ${result.searchRadius}km`
+        );
+      } else {
+        this.logger.warn(
+          `⚠️ Could not perform proximity search for Order #${orderMessage.orderId} - order or location data not found`
+        );
+      }
+
+    } catch (error) {
+      this.logger.error(
+        `❌ Error during proximity search for Order #${orderMessage.orderId}:`,
+        error.message
+      );
     }
   }
 

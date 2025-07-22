@@ -4,6 +4,8 @@ import { AppService } from './app.service';
 import { OrderService } from './services/order.service';
 import { RiderService } from './services/rider.service';
 import { DispatchService } from './services/dispatch.service';
+import { ProximityService } from './services/proximity.service';
+import { OrderProximityService } from './services/order-proximity.service';
 import { OrderController } from './controllers/order.controller';
 import { RiderController } from './controllers/rider.controller';
 import { DispatchController } from './controllers/dispatch.controller';
@@ -26,9 +28,19 @@ import { WebSocketsModule } from './websockets/websockets.module';
     OrderService,
     RiderService,
     DispatchService,
+    ProximityService,
+    OrderProximityService,
     KnexService,
     RabbitMQService,
   ],
-  exports: [OrderService, RiderService, DispatchService, KnexService, RabbitMQService],
+  exports: [
+    OrderService,
+    RiderService, 
+    DispatchService,
+    ProximityService,
+    OrderProximityService,
+    KnexService,
+    RabbitMQService,
+  ],
 })
 export class AppModule {}
