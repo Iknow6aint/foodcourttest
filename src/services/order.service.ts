@@ -32,7 +32,7 @@ export class OrderService {
         throw new InternalServerErrorException('Database connection error');
       }
 
-      const result = await this.knex.raw<Order[]>(`
+      const result = await this.knex.raw(`
         SELECT 
           o.id,
           o.user_id,
