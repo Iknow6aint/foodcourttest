@@ -13,7 +13,7 @@ export async function up(knex: Knex): Promise<void> {
     table.timestamp('kitchen_completed_time').nullable();
     table.boolean('shop_accepted').defaultTo(false);
     table.boolean('shop_prepared').defaultTo(false);
-    
+
     // Rider related fields
     table.integer('rider_id').nullable();
     table.boolean('rider_assigned').defaultTo(false);
@@ -21,7 +21,7 @@ export async function up(knex: Knex): Promise<void> {
     table.boolean('rider_started').defaultTo(false);
     table.timestamp('rider_arrived_time').nullable();
     table.boolean('rider_arrived').defaultTo(false);
-    
+
     // Delivery related fields
     table.integer('no_of_mealbags_delivered').defaultTo(0);
     table.integer('no_of_drinks_delivered').defaultTo(0);
@@ -29,7 +29,7 @@ export async function up(knex: Knex): Promise<void> {
     table.jsonb('failed_trip_details').nullable();
     table.string('box_number').nullable();
     table.integer('shelf_id').nullable();
-    
+
     // Order management fields
     table.jsonb('order_change').nullable();
     table.boolean('scheduled').defaultTo(false);

@@ -1,5 +1,10 @@
 // src/database/knex.service.ts
-import { Injectable, OnModuleDestroy, OnModuleInit, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
+  Logger,
+} from '@nestjs/common';
 import knex, { Knex } from 'knex';
 import knexConfig from '../../knexfile';
 

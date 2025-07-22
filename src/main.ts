@@ -8,7 +8,9 @@ async function bootstrap() {
   // Swagger Configuration
   const config = new DocumentBuilder()
     .setTitle('Food Court API')
-    .setDescription('Food delivery system API with comprehensive order management, meal tracking, and analytics')
+    .setDescription(
+      'Food delivery system API with comprehensive order management, meal tracking, and analytics',
+    )
     .setVersion('1.0')
     .addTag('Orders', 'Order management endpoints')
     .build();
@@ -28,8 +30,10 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  
+
   console.log(`Application is running on: http://localhost:${port}`);
-  console.log(`Swagger documentation available at: http://localhost:${port}/api/docs`);
+  console.log(
+    `Swagger documentation available at: http://localhost:${port}/api/docs`,
+  );
 }
 bootstrap();

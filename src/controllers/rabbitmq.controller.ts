@@ -11,7 +11,8 @@ export class RabbitMQController {
   @Post('test-order')
   @ApiOperation({
     summary: 'Test RabbitMQ by publishing a test order message',
-    description: 'Publishes a test order created message to RabbitMQ queue for testing purposes',
+    description:
+      'Publishes a test order created message to RabbitMQ queue for testing purposes',
   })
   @ApiResponse({
     status: 200,
@@ -31,7 +32,7 @@ export class RabbitMQController {
     await this.rabbitMQService.publishOrderCreated(
       Date.now(), // orderId
       1, // userId
-      testOrderData
+      testOrderData,
     );
 
     return {
@@ -43,7 +44,8 @@ export class RabbitMQController {
   @Get('status')
   @ApiOperation({
     summary: 'Get RabbitMQ connection status',
-    description: 'Returns the current connection status and health of RabbitMQ service',
+    description:
+      'Returns the current connection status and health of RabbitMQ service',
   })
   @ApiResponse({
     status: 200,

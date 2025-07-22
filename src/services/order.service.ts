@@ -104,24 +104,34 @@ export class OrderService {
 
       // Get order amount history separately for each order to avoid complex aggregation
       for (const order of ordersWithDetails) {
-        const historyResult = await this.knex.raw(`
+        const historyResult = await this.knex.raw(
+          `
           SELECT 
             oah.time,
             oah.total_amount
           FROM order_amount_history oah
           WHERE oah.order_id = ?
           ORDER BY oah.time ASC
-        `, [order.id]);
-        
+        `,
+          [order.id],
+        );
+
         (order as any).order_total_amount_history = historyResult.rows || [];
       }
 
-      this.logger.log(`Retrieved ${ordersWithDetails.length} orders with complete details using raw SQL`);
+      this.logger.log(
+        `Retrieved ${ordersWithDetails.length} orders with complete details using raw SQL`,
+      );
       return ordersWithDetails;
     } catch (err: unknown) {
       const error = err as Error;
-      this.logger.error('Failed to fetch orders with details using raw SQL', error.stack || error.message);
-      throw new InternalServerErrorException('Something went wrong while fetching order details');
+      this.logger.error(
+        'Failed to fetch orders with details using raw SQL',
+        error.stack || error.message,
+      );
+      throw new InternalServerErrorException(
+        'Something went wrong while fetching order details',
+      );
     }
   }
 
@@ -175,13 +185,16 @@ export class OrderService {
         LIMIT 1
       `);
 
-      const mostBoughtMealResult = result.rows[0] as MostBoughtMealResponseDto & { 
-        total_revenue: number; 
-        order_count: number; 
+      const mostBoughtMealResult = result
+        .rows[0] as MostBoughtMealResponseDto & {
+        total_revenue: number;
+        order_count: number;
       };
 
       if (!mostBoughtMealResult) {
-        this.logger.warn('No completed orders with meals found to determine most bought meal.');
+        this.logger.warn(
+          'No completed orders with meals found to determine most bought meal.',
+        );
         throw new NotFoundException('No completed orders with meals found');
       }
 
@@ -191,14 +204,19 @@ export class OrderService {
       };
 
       this.logger.log(
-        `Most bought meal found using raw SQL: "${mostBoughtMeal.name}" with ${mostBoughtMeal.total_quantity} total quantity across ${mostBoughtMealResult.order_count} orders (Total revenue: ${mostBoughtMealResult.total_revenue})`
+        `Most bought meal found using raw SQL: "${mostBoughtMeal.name}" with ${mostBoughtMeal.total_quantity} total quantity across ${mostBoughtMealResult.order_count} orders (Total revenue: ${mostBoughtMealResult.total_revenue})`,
       );
 
       return mostBoughtMeal;
     } catch (err: unknown) {
       const error = err as Error;
-      this.logger.error('Failed to fetch most bought meal using raw SQL', error.stack || error.message);
-      throw new InternalServerErrorException('Something went wrong while fetching the most bought meal');
+      this.logger.error(
+        'Failed to fetch most bought meal using raw SQL',
+        error.stack || error.message,
+      );
+      throw new InternalServerErrorException(
+        'Something went wrong while fetching the most bought meal',
+      );
     }
   }
 }

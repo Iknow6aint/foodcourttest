@@ -15,7 +15,8 @@ export class MealDto {
 
   @ApiProperty({
     description: 'Meal description',
-    example: 'White rice wrapped in banana leaves served with special pepper stew',
+    example:
+      'White rice wrapped in banana leaves served with special pepper stew',
   })
   description: string;
 

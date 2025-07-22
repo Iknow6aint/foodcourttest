@@ -8,8 +8,18 @@ export async function up(knex: Knex): Promise<void> {
     table.boolean('cancelled').defaultTo(false);
     table.boolean('paid').defaultTo(false);
     table.string('order_code');
-    table.integer('calculated_order_id').unsigned().references('id').inTable('calculated_orders').onDelete('SET NULL');
-    table.integer('order_type_id').unsigned().references('id').inTable('order_types').onDelete('SET NULL');
+    table
+      .integer('calculated_order_id')
+      .unsigned()
+      .references('id')
+      .inTable('calculated_orders')
+      .onDelete('SET NULL');
+    table
+      .integer('order_type_id')
+      .unsigned()
+      .references('id')
+      .inTable('order_types')
+      .onDelete('SET NULL');
     table.timestamps(true, true);
   });
 }

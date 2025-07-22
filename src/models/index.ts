@@ -4,6 +4,7 @@ export * from './calculated-order.model';
 export * from './log.model';
 export * from './order-amount-history.model';
 export * from './order-type.model';
+export * from './rider.model';
 
 // Type guards and utility types
 export type OrderStatus =
@@ -23,4 +24,5 @@ export interface OrderWithRelations
   calculated_order: import('./calculated-order.model').CalculatedOrder | null;
   order_type: import('./order-type.model').OrderType | null;
   order_total_amount_history: import('./order-amount-history.model').OrderAmountHistory[];
+  rider?: import('./rider.model').Rider | null; // Added rider relationship
 }
