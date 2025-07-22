@@ -1,23 +1,36 @@
 // src/database/knex.service.ts
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit, Logger } from '@nestjs/common';
 import knex, { Knex } from 'knex';
 import knexConfig from '../../knexfile';
 
 @Injectable()
 export class KnexService implements OnModuleInit, OnModuleDestroy {
-  public knex: Knex;
+  private readonly logger = new Logger(KnexService.name);
+  private knexInstance: Knex | null = null;
 
-  onModuleInit() {
-    this.knex = knex(knexConfig.development);
+  async onModuleInit() {
+    try {
+      this.knexInstance = knex(knexConfig.development);
+      // Test the connection
+      await this.knexInstance.raw('SELECT 1');
+      this.logger.log('Database connection established successfully');
+    } catch (error) {
+      this.logger.error('Failed to establish database connection', error);
+      throw error;
+    }
   }
 
-  onModuleDestroy() {
-    if (this.knex) {
-      this.knex.destroy();
+  async onModuleDestroy() {
+    if (this.knexInstance) {
+      await this.knexInstance.destroy();
+      this.logger.log('Database connection closed');
     }
   }
 
   getKnex(): Knex {
-    return this.knex;
+    if (!this.knexInstance) {
+      throw new Error('Database connection not initialized');
+    }
+    return this.knexInstance;
   }
 }
