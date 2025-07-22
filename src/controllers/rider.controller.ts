@@ -23,18 +23,18 @@ import {
   RiderLocationUpdateDto,
   RiderAvailabilityUpdateDto,
   RiderProfileUpdateDto,
-} from '../dto/rider.dto';
+} from '../models/dto/rider.dto';
 import {
   RiderPublicProfileDto,
   LocationUpdateResponseDto,
   ApiResponseDto,
-} from '../dto/rider-response.dto';
+} from '../models/dto/rider-response.dto';
 import {
   ValidationErrorResponseDto,
   UnauthorizedErrorResponseDto,
   NotFoundErrorResponseDto,
-} from '../dto/error-response.dto';
-import { SwaggerExamples } from '../dto/swagger-examples';
+} from '../models/dto/error-response.dto';
+import { SwaggerExamples } from '../models/dto/swagger-examples';
 
 @ApiTags('Riders')
 @ApiSecurity('rider-auth')

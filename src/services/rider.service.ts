@@ -16,15 +16,15 @@ import {
   RiderLocationUpdateDto,
   RiderAvailabilityUpdateDto,
   RiderProfileUpdateDto,
-} from '../dto/rider.dto';
+} from '../models/dto/rider.dto';
 import {
   RiderPublicProfileDto,
   RiderLocationDto,
   LocationUpdateResponseDto,
   ApiResponseDto,
-} from '../dto/rider-response.dto';
+} from '../models/dto/rider-response.dto';
 import { ConnectionManagerService } from '../websockets/connection-manager.service';
-import { LocationUpdateMessageDto } from '../dto/websocket-message.dto';
+import { LocationUpdateMessageDto } from '../models/dto/websocket-message.dto';
 
 @Injectable()
 export class RiderService {

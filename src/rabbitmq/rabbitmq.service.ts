@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ORDER_QUEUE, MessageType } from './queue.constants';
 import { rabbitMQConfig } from './rabbitmq.config';
-import { OrderProximityService } from '../services/order-proximity.service';
+import { OrderProximityService } from '../order/order-proximity.service';
 import { KnexService } from '../database/knex.service';
 
 export interface OrderMessage {
@@ -124,7 +124,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
 
     try {
       this.logger.log(
-        `🎧 Starting to listen for messages on queue: ${ORDER_QUEUE}`,
+        `Starting to listen for messages on queue: ${ORDER_QUEUE}`,
       );
 
       await this.channel.consume(ORDER_QUEUE, async (msg) => {
@@ -133,13 +133,13 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
             const messageContent = msg.content.toString();
             const orderMessage: OrderMessage = JSON.parse(messageContent);
 
-            this.logger.log('📦 ===== NEW ORDER MESSAGE RECEIVED =====');
-            this.logger.log(`📊 Message Type: ${orderMessage.type}`);
-            this.logger.log(`🆔 Order ID: ${orderMessage.orderId}`);
-            this.logger.log(`👤 User ID: ${orderMessage.userId}`);
-            this.logger.log(`⏰ Timestamp: ${orderMessage.timestamp}`);
+            this.logger.log(' ===== NEW ORDER MESSAGE RECEIVED =====');
+            this.logger.log(` Message Type: ${orderMessage.type}`);
+            this.logger.log(`Order ID: ${orderMessage.orderId}`);
+            this.logger.log(` User ID: ${orderMessage.userId}`);
+            this.logger.log(`Timestamp: ${orderMessage.timestamp}`);
             this.logger.log(
-              `📄 Order Data: ${JSON.stringify(orderMessage.orderData, null, 2)}`,
+              ` Order Data: ${JSON.stringify(orderMessage.orderData, null, 2)}`,
             );
             this.logger.log('==========================================');
 
@@ -148,9 +148,9 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
 
             // Acknowledge the message
             this.channel?.ack(msg);
-            this.logger.log(`✅ Message processed and acknowledged`);
+            this.logger.log(`Message processed and acknowledged`);
           } catch (error) {
-            this.logger.error('❌ Error processing message:', error.message);
+            this.logger.error(' Error processing message:', error.message);
 
             // Reject the message and don't requeue if it's a parsing error
             this.channel?.nack(msg, false, false);
@@ -176,7 +176,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
 
         case MessageType.ORDER_UPDATED:
           this.logger.log(
-            `📝 Processing order update for Order #${orderMessage.orderId}`,
+            ` Processing order update for Order #${orderMessage.orderId}`,
           );
           // Add any specific business logic for order updates here
           break;
@@ -200,32 +200,40 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
   /**
    * Trigger proximity search for new order
    */
-  private async triggerProximitySearch(orderMessage: OrderMessage): Promise<void> {
+  private async triggerProximitySearch(
+    orderMessage: OrderMessage,
+  ): Promise<void> {
     try {
-      this.logger.log(`🔍 TRIGGERING PROXIMITY SEARCH for Order #${orderMessage.orderId}`);
+      this.logger.log(
+        ` TRIGGERING PROXIMITY SEARCH for Order #${orderMessage.orderId}`,
+      );
 
       // Check if we have location data in the message itself (for testing)
-      if (orderMessage.orderData?.customerLocation?.lat && orderMessage.orderData?.customerLocation?.lng) {
+      if (
+        orderMessage.orderData?.customerLocation?.lat &&
+        orderMessage.orderData?.customerLocation?.lng
+      ) {
         const restaurantLocation = {
           latitude: orderMessage.orderData.customerLocation.lat,
           longitude: orderMessage.orderData.customerLocation.lng,
         };
 
         this.logger.log(
-          `📍 Using location from message: (${restaurantLocation.latitude}, ${restaurantLocation.longitude})`
+          `📍 Using location from message: (${restaurantLocation.latitude}, ${restaurantLocation.longitude})`,
         );
 
         // Perform proximity search directly with location data
-        const result = await this.orderProximityService.performOrderProximitySearch({
-          orderId: orderMessage.orderId,
-          restaurantLocation,
-        });
+        const result =
+          await this.orderProximityService.performOrderProximitySearch({
+            orderId: orderMessage.orderId,
+            restaurantLocation,
+          });
 
         this.logger.log(
-          `✅ Direct proximity search completed for Order #${orderMessage.orderId}:\n` +
-          `   → Found ${result.totalRidersFound} nearby riders\n` +
-          `   → ${result.connectedRidersCount} riders are currently online\n` +
-          `   → Search radius: ${result.searchRadius}km`
+          `Direct proximity search completed for Order #${orderMessage.orderId}:\n` +
+            `   → Found ${result.totalRidersFound} nearby riders\n` +
+            `   → ${result.connectedRidersCount} riders are currently online\n` +
+            `   → Search radius: ${result.searchRadius}km`,
         );
 
         return;
@@ -233,26 +241,25 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
 
       // Fallback: Try to get order details from database (for real orders)
       const result = await this.orderProximityService.getOrderProximityResults(
-        orderMessage.orderId
+        orderMessage.orderId,
       );
 
       if (result) {
         this.logger.log(
-          `✅ Database proximity search completed for Order #${orderMessage.orderId}:\n` +
-          `   → Found ${result.totalRidersFound} nearby riders\n` +
-          `   → ${result.connectedRidersCount} riders are currently online\n` +
-          `   → Search radius: ${result.searchRadius}km`
+          `Database proximity search completed for Order #${orderMessage.orderId}:\n` +
+            `   → Found ${result.totalRidersFound} nearby riders\n` +
+            `   → ${result.connectedRidersCount} riders are currently online\n` +
+            `   → Search radius: ${result.searchRadius}km`,
         );
       } else {
         this.logger.warn(
-          `⚠️ Could not perform proximity search for Order #${orderMessage.orderId} - order or location data not found`
+          `Could not perform proximity search for Order #${orderMessage.orderId} - order or location data not found`,
         );
       }
-
     } catch (error) {
       this.logger.error(
         `❌ Error during proximity search for Order #${orderMessage.orderId}:`,
-        error.message
+        error.message,
       );
     }
   }
@@ -276,7 +283,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
 
       if (published) {
         this.logger.log(
-          `📤 Message published to queue "${ORDER_QUEUE}": ${orderMessage.type} for Order #${orderMessage.orderId}`,
+          ` Message published to queue "${ORDER_QUEUE}": ${orderMessage.type} for Order #${orderMessage.orderId}`,
         );
       } else {
         this.logger.error('Failed to publish message to queue');

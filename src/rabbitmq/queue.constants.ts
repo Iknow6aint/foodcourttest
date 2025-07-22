@@ -7,5 +7,3 @@ export enum MessageType {
   ORDER_UPDATED = 'ORDER_UPDATED',
   ORDER_CANCELLED = 'ORDER_CANCELLED',
 }
-
-// Additional queue names for future use

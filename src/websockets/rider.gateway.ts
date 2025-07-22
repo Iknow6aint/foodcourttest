@@ -10,13 +10,13 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger, UseGuards } from '@nestjs/common';
 import { ConnectionManagerService } from './connection-manager.service';
-import { OrderProximityService } from '../services/order-proximity.service';
+import { OrderProximityService } from '../order/order-proximity.service';
 import { KnexService } from '../database/knex.service';
 import {
   WebSocketMessageDto,
   LocationUpdateMessageDto,
   WebSocketErrorMessageDto,
-} from '../dto/websocket-message.dto';
+} from '../models/dto/websocket-message.dto';
 
 @WebSocketGateway({
   namespace: '/riders',

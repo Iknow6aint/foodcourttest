@@ -5,8 +5,8 @@
   Logger,
 } from '@nestjs/common';
 import { KnexService } from '../database/knex.service';
-import { OrderResponseDto } from '../dto/order-response.dto';
-import { MostBoughtMealResponseDto } from '../dto/most-bought-meal-response.dto';
+import { OrderResponseDto } from '../models/dto/order-response.dto';
+import { MostBoughtMealResponseDto } from '../models/dto/most-bought-meal-response.dto';
 
 @Injectable()
 export class OrderService {

@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConnectionManagerService } from '../websockets/connection-manager.service';
 import { KnexService } from '../database/knex.service';
-import { OrderAssignmentDto } from '../dto/rider.dto';
+import { OrderAssignmentDto } from '../models/dto/rider.dto';
 
 @Injectable()
 export class DispatchService {

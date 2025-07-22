@@ -16,7 +16,7 @@ import {
   Matches,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { VehicleType } from '../models/rider.model';
+import { VehicleType } from '../rider.model';
 
 /**
  * DTO for rider location updates

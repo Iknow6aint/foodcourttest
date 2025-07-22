@@ -4,34 +4,77 @@ import {
   WebSocketMessageDto,
   LocationUpdateMessageDto,
   ConnectionStatusMessageDto,
-} from '../dto/websocket-message.dto';
+} from '../models/dto/websocket-message.dto';
 
+/**
+ * Interface representing a connected rider
+ * @interface ConnectedRider
+ */
 interface ConnectedRider {
+  /** The unique identifier of the rider */
   riderId: number;
+  /** The Socket.IO connection object */
   socket: Socket;
+  /** Timestamp when the rider connected */
   connectedAt: Date;
+  /** Timestamp of the rider's last activity */
   lastActivity: Date;
 }
 
+/**
+ * Interface representing a connected dispatch dashboard
+ * @interface ConnectedDispatch
+ */
 interface ConnectedDispatch {
+  /** The unique session identifier for the dispatch connection */
   id: string;
+  /** The Socket.IO connection object */
   socket: Socket;
+  /** Timestamp when the dispatch connected */
   connectedAt: Date;
+  /** Timestamp of the dispatch's last activity */
   lastActivity: Date;
 }
 
+/**
+ * Service for managing WebSocket connections between riders and dispatch dashboards.
+ * Handles connection tracking, message broadcasting, and real-time communication.
+ *
+ * @class ConnectionManagerService
+ * @example
+ * ```typescript
+ * // Register a new rider connection
+ * connectionManager.addRiderConnection(riderId, socket);
+ *
+ * // Send message to specific rider
+ * connectionManager.sendToRider(riderId, message);
+ *
+ * // Broadcast to all dispatch dashboards
+ * connectionManager.broadcastToDispatch(message);
+ * ```
+ */
 @Injectable()
 export class ConnectionManagerService {
   private readonly logger = new Logger(ConnectionManagerService.name);
 
-  // Map to store rider connections: riderId -> connection details
+  /** Map to store rider connections: riderId -> connection details */
   private riderConnections = new Map<number, ConnectedRider>();
 
-  // Map to store dispatch connections: sessionId -> connection details
+  /** Map to store dispatch connections: sessionId -> connection details */
   private dispatchConnections = new Map<string, ConnectedDispatch>();
 
   /**
-   * Register a new rider connection
+   * Register a new rider connection and notify dispatch dashboards.
+   * Removes any existing connection for the same rider before adding the new one.
+   *
+   * @param {number} riderId - The unique identifier of the rider
+   * @param {Socket} socket - The Socket.IO connection object
+   * @returns {void}
+   *
+   * @example
+   * ```typescript
+   * connectionManager.addRiderConnection(123, socket);
+   * ```
    */
   addRiderConnection(riderId: number, socket: Socket): void {
     const connection: ConnectedRider = {
@@ -65,7 +108,16 @@ export class ConnectionManagerService {
   }
 
   /**
-   * Register a new dispatch connection
+   * Register a new dispatch dashboard connection and send current rider list.
+   *
+   * @param {string} sessionId - The unique session identifier for the dispatch connection
+   * @param {Socket} socket - The Socket.IO connection object
+   * @returns {void}
+   *
+   * @example
+   * ```typescript
+   * connectionManager.addDispatchConnection('dispatch-123', socket);
+   * ```
    */
   addDispatchConnection(sessionId: string, socket: Socket): void {
     const connection: ConnectedDispatch = {
@@ -86,7 +138,16 @@ export class ConnectionManagerService {
   }
 
   /**
-   * Remove rider connection
+   * Remove rider connection and notify dispatch dashboards of disconnection.
+   *
+   * @param {number} riderId - The unique identifier of the rider to remove
+   * @returns {boolean} True if the connection was found and removed, false otherwise
+   *
+   * @example
+   * ```typescript
+   * const removed = connectionManager.removeRiderConnection(123);
+   * console.log(removed); // true if rider was connected
+   * ```
    */
   removeRiderConnection(riderId: number): boolean {
     const connection = this.riderConnections.get(riderId);
@@ -115,7 +176,16 @@ export class ConnectionManagerService {
   }
 
   /**
-   * Remove dispatch connection
+   * Remove dispatch dashboard connection.
+   *
+   * @param {string} sessionId - The unique session identifier of the dispatch to remove
+   * @returns {boolean} True if the connection was found and removed, false otherwise
+   *
+   * @example
+   * ```typescript
+   * const removed = connectionManager.removeDispatchConnection('dispatch-123');
+   * console.log(removed); // true if dispatch was connected
+   * ```
    */
   removeDispatchConnection(sessionId: string): boolean {
     const connection = this.dispatchConnections.get(sessionId);
@@ -132,7 +202,20 @@ export class ConnectionManagerService {
   }
 
   /**
-   * Send message to a specific rider
+   * Send a message to a specific rider if they are connected.
+   *
+   * @param {number} riderId - The unique identifier of the rider
+   * @param {WebSocketMessageDto} message - The message to send
+   * @returns {boolean} True if the message was sent successfully, false if rider is not connected
+   *
+   * @example
+   * ```typescript
+   * const sent = connectionManager.sendToRider(123, {
+   *   type: 'order_assigned',
+   *   data: { orderId: 456 },
+   *   timestamp: new Date().toISOString()
+   * });
+   * ```
    */
   sendToRider(riderId: number, message: WebSocketMessageDto): boolean {
     const connection = this.riderConnections.get(riderId);
@@ -151,7 +234,20 @@ export class ConnectionManagerService {
   }
 
   /**
-   * Broadcast message to all connected dispatch dashboards
+   * Broadcast a message to all connected dispatch dashboards.
+   * Automatically cleans up disconnected sockets during the broadcast.
+   *
+   * @param {WebSocketMessageDto} message - The message to broadcast
+   * @returns {void}
+   *
+   * @example
+   * ```typescript
+   * connectionManager.broadcastToDispatch({
+   *   type: 'rider_connected',
+   *   data: { riderId: 123, status: 'connected' },
+   *   timestamp: new Date().toISOString()
+   * });
+   * ```
    */
   broadcastToDispatch(message: WebSocketMessageDto): void {
     let sentCount = 0;
@@ -175,11 +271,11 @@ export class ConnectionManagerService {
       // Special logging for location updates
       if (message.type === 'location_update') {
         this.logger.log(
-          ` LOCATION UPDATE SENT TO DISPATCH: Rider ${message.data?.riderId} → ${sentCount} dashboard(s)`,
+          ` LOCATION UPDATE SENT TO DISPATCH: Rider ${(message.data as any)?.riderId} → ${sentCount} dashboard(s)`,
         );
       } else if (message.type === 'order_assigned') {
         this.logger.log(
-          `ORDER ASSIGNMENT NOTIFICATION SENT TO DISPATCH: Order ${message.data?.order_id} assigned to Rider ${message.data?.rider_id} → ${sentCount} dashboard(s)`,
+          `ORDER ASSIGNMENT NOTIFICATION SENT TO DISPATCH: Order ${(message.data as any)?.order_id} assigned to Rider ${(message.data as any)?.rider_id} → ${sentCount} dashboard(s)`,
         );
       }
     } else {
@@ -190,14 +286,36 @@ export class ConnectionManagerService {
   }
 
   /**
-   * Broadcast location update to dispatch dashboards
+   * Broadcast location update message to all dispatch dashboards.
+   * This is a convenience method that wraps broadcastToDispatch for location updates.
+   *
+   * @param {LocationUpdateMessageDto} locationData - The location update message to broadcast
+   * @returns {void}
+   *
+   * @example
+   * ```typescript
+   * connectionManager.broadcastLocationUpdate({
+   *   type: 'location_update',
+   *   data: { riderId: 123, latitude: 37.7749, longitude: -122.4194 }
+   * });
+   * ```
    */
   broadcastLocationUpdate(locationData: LocationUpdateMessageDto): void {
     this.broadcastToDispatch(locationData);
   }
 
   /**
-   * Get rider connection status
+   * Check if a specific rider is currently connected.
+   *
+   * @param {number} riderId - The unique identifier of the rider
+   * @returns {boolean} True if the rider is connected and socket is active, false otherwise
+   *
+   * @example
+   * ```typescript
+   * if (connectionManager.isRiderConnected(123)) {
+   *   console.log('Rider 123 is online');
+   * }
+   * ```
    */
   isRiderConnected(riderId: number): boolean {
     const connection = this.riderConnections.get(riderId);
@@ -205,14 +323,33 @@ export class ConnectionManagerService {
   }
 
   /**
-   * Get all connected rider IDs
+   * Get an array of all currently connected rider IDs.
+   *
+   * @returns {number[]} Array of rider IDs that are currently connected
+   *
+   * @example
+   * ```typescript
+   * const connectedRiders = connectionManager.getConnectedRiderIds();
+   * console.log(`${connectedRiders.length} riders are online`);
+   * ```
    */
   getConnectedRiderIds(): number[] {
     return Array.from(this.riderConnections.keys());
   }
 
   /**
-   * Get connection statistics
+   * Get comprehensive connection statistics for monitoring and debugging.
+   *
+   * @returns {Object} Connection statistics object
+   * @returns {number} returns.connectedRiders - Number of connected riders
+   * @returns {number} returns.connectedDispatchers - Number of connected dispatch dashboards
+   * @returns {number} returns.totalConnections - Total number of connections
+   *
+   * @example
+   * ```typescript
+   * const stats = connectionManager.getConnectionStats();
+   * console.log(`Riders: ${stats.connectedRiders}, Dispatchers: ${stats.connectedDispatchers}`);
+   * ```
    */
   getConnectionStats(): {
     connectedRiders: number;
@@ -228,7 +365,12 @@ export class ConnectionManagerService {
   }
 
   /**
-   * Send current connected riders to a dispatch connection
+   * Send the current list of connected riders to a newly connected dispatch dashboard.
+   * This is automatically called when a new dispatch connection is established.
+   *
+   * @private
+   * @param {Socket} dispatchSocket - The Socket.IO connection of the dispatch dashboard
+   * @returns {void}
    */
   private sendConnectedRidersToDispatch(dispatchSocket: Socket): void {
     const connectedRiders = Array.from(this.riderConnections.values()).map(
@@ -248,14 +390,35 @@ export class ConnectionManagerService {
   }
 
   /**
-   * Generate unique message ID
+   * Generate a unique message ID for WebSocket messages.
+   * Format: msg-{timestamp}-{random-string}
+   *
+   * @private
+   * @returns {string} A unique message identifier
+   *
+   * @example
+   * ```typescript
+   * const messageId = this.generateMessageId();
+   * // Returns: "msg-1642781234567-abc123"
+   * ```
    */
   private generateMessageId(): string {
     return `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   }
 
   /**
-   * Cleanup disconnected sockets periodically
+   * Clean up disconnected sockets from both rider and dispatch connection maps.
+   * This method should be called periodically to prevent memory leaks from stale connections.
+   *
+   * @returns {void}
+   *
+   * @example
+   * ```typescript
+   * // Call this method periodically (e.g., every 30 seconds)
+   * setInterval(() => {
+   *   connectionManager.cleanupDisconnectedSockets();
+   * }, 30000);
+   * ```
    */
   cleanupDisconnectedSockets(): void {
     let cleanedUp = 0;
@@ -282,7 +445,17 @@ export class ConnectionManagerService {
   }
 
   /**
-   * Update rider activity timestamp
+   * Update the last activity timestamp for a specific rider connection.
+   * This helps track rider engagement and can be used for timeout mechanisms.
+   *
+   * @param {number} riderId - The unique identifier of the rider
+   * @returns {void}
+   *
+   * @example
+   * ```typescript
+   * // Called when rider sends a message or performs an action
+   * connectionManager.updateRiderActivity(123);
+   * ```
    */
   updateRiderActivity(riderId: number): void {
     const connection = this.riderConnections.get(riderId);
@@ -292,7 +465,17 @@ export class ConnectionManagerService {
   }
 
   /**
-   * Update dispatch activity timestamp
+   * Update the last activity timestamp for a specific dispatch dashboard connection.
+   * This helps track dashboard engagement and can be used for timeout mechanisms.
+   *
+   * @param {string} sessionId - The unique session identifier of the dispatch dashboard
+   * @returns {void}
+   *
+   * @example
+   * ```typescript
+   * // Called when dispatch dashboard sends a request or performs an action
+   * connectionManager.updateDispatchActivity('dispatch-123');
+   * ```
    */
   updateDispatchActivity(sessionId: string): void {
     const connection = this.dispatchConnections.get(sessionId);

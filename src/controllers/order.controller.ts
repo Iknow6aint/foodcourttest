@@ -5,9 +5,9 @@ import {
   ApiResponse,
   ApiOkResponse,
 } from '@nestjs/swagger';
-import { OrderService } from '../services/order.service';
-import { OrderResponseDto } from '../dto/order-response.dto';
-import { MostBoughtMealResponseDto } from '../dto/most-bought-meal-response.dto';
+import { OrderService } from '../order/order.service';
+import { OrderResponseDto } from '../models/dto/order-response.dto';
+import { MostBoughtMealResponseDto } from '../models/dto/most-bought-meal-response.dto';
 
 @ApiTags('Orders')
 @Controller('orders')

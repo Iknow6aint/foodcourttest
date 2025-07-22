@@ -11,14 +11,14 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { DispatchService } from '../services/dispatch.service';
-import { OrderProximityService } from '../services/order-proximity.service';
-import { OrderAssignmentDto } from '../dto/rider.dto';
-import { ApiResponseDto } from '../dto/rider-response.dto';
+import { OrderProximityService } from '../order/order-proximity.service';
+import { OrderAssignmentDto } from '../models/dto/rider.dto';
+import { ApiResponseDto } from '../models/dto/rider-response.dto';
 import {
   ValidationErrorResponseDto,
   NotFoundErrorResponseDto,
-} from '../dto/error-response.dto';
-import { SwaggerExamples } from '../dto/swagger-examples';
+} from '../models/dto/error-response.dto';
+import { SwaggerExamples } from '../models/dto/swagger-examples';
 
 @ApiTags('Dispatch')
 @Controller('api/dispatch')
@@ -200,7 +200,8 @@ export class DispatchController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Assign calculated order to rider',
-    description: 'Assigns a calculated order to a specific rider and notifies them via WebSocket',
+    description:
+      'Assigns a calculated order to a specific rider and notifies them via WebSocket',
   })
   @ApiResponse({
     status: 200,
@@ -238,7 +239,7 @@ export class DispatchController {
       };
     } catch (error) {
       this.logger.error('Error assigning order to rider:', error.message);
-      
+
       return {
         success: false,
         message: error.message || 'Failed to assign order',

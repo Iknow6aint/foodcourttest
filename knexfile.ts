@@ -16,7 +16,7 @@ const config: { [key: string]: Knex.Config } = {
       extension: 'ts',
     },
     seeds: {
-      directory: './src/seeds',
+      directory: './src/database/seeds',
       extension: 'ts',
     },
     pool: {

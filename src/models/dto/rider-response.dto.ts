@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { VehicleType } from '../models/rider.model';
+import { VehicleType } from '../rider.model';
 
 /**
  * DTO for rider public profile response

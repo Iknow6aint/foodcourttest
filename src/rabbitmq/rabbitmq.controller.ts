@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
-import { MessageType } from '../rabbitmq/queue.constants';
+import { RabbitMQService } from './rabbitmq.service';
+import { MessageType } from './queue.constants';
 
 @ApiTags('RabbitMQ')
 @Controller('rabbitmq')

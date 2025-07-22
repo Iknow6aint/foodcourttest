@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { KnexService } from '../database/knex.service';
-import { ProximityService, Location, NearbyRider } from './proximity.service';
+import { ProximityService, Location, NearbyRider } from '../services/proximity.service';
 import { ConnectionManagerService } from '../websockets/connection-manager.service';
 import { Rider } from '../models/rider.model';
 import { CalculatedOrder } from '../models/calculated-order.model';

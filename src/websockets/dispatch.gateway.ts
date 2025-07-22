@@ -10,7 +10,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { ConnectionManagerService } from './connection-manager.service';
-import { WebSocketMessageDto } from '../dto/websocket-message.dto';
+import { WebSocketMessageDto } from '../models/dto/websocket-message.dto';
 
 @WebSocketGateway({
   namespace: '/dispatch',
