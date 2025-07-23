@@ -343,6 +343,30 @@ export class RiderService {
   }
 
   /**
+   * Get all active riders for dropdown/list purposes
+   */
+  async getAllActiveRiders(): Promise<RiderPublicProfileDto[]> {
+    try {
+      const ridersResult = await this.knex.raw(`
+        SELECT 
+          id, name, email, phone, is_available, vehicle_type, 
+          profile_image_url, created_at, current_latitude, current_longitude
+        FROM riders 
+        WHERE is_active = true 
+        ORDER BY name ASC
+      `);
+
+      return ridersResult.rows || [];
+    } catch (error) {
+      this.logger.error(
+        `Error fetching all active riders: ${error.message}`,
+        error.stack,
+      );
+      throw new BadRequestException('Failed to fetch riders list');
+    }
+  }
+
+  /**
    * Validate rider exists and is active
    */
   async validateRiderExists(riderId: number): Promise<boolean> {

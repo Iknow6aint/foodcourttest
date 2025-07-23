@@ -173,7 +173,7 @@
     </style>
 </head>
 <body>
-    <h1>🌍 Complete Geospatial Proximity Search Flow Test</h1>
+    <h1>Complete Geospatial Proximity Search Flow Test</h1>
     
     <div class="container">
         <!-- Rider Panel -->
@@ -184,14 +184,9 @@
                 <h3>Step 1: Connect as Rider</h3>
                 <label>Rider ID:</label>
                 <select id="riderId">
-                    <option value="20">Rider 20 (James Wilson - 0km)</option>
-                    <option value="21">Rider 21 (Sarah Johnson - 1.8km)</option>
-                    <option value="22">Rider 22 (Michael Chen - 3.9km)</option>
-                    <option value="23">Rider 23 (Amara Okafor - 5.2km)</option>
-                    <option value="24">Rider 24 (David Adebayo - 6.8km)</option>
-                    <option value="25">Rider 25 (Grace Enyeribe - 8.1km)</option>
-                    <option value="26">Rider 26 (Peter Okolie - 9.5km)</option>
+                    <option value="">Loading riders...</option>
                 </select>
+                <button onclick="loadRiders()">Refresh Riders</button>
                 <button onclick="connectRider()">Connect Rider</button>
                 <div class="rider-info">
                     <span class="status-indicator status-disconnected" id="riderStatus"></span>
@@ -263,13 +258,7 @@
                 <input type="number" id="calculatedOrderId" value="1">
                 <label>Assign to Rider ID:</label>
                 <select id="assignRiderId">
-                    <option value="20">Rider 20 (James Wilson - 0km)</option>
-                    <option value="21">Rider 21 (Sarah Johnson - 1.8km)</option>
-                    <option value="22">Rider 22 (Michael Chen - 3.9km)</option>
-                    <option value="23">Rider 23 (Amara Okafor - 5.2km)</option>
-                    <option value="24">Rider 24 (David Adebayo - 6.8km)</option>
-                    <option value="25">Rider 25 (Grace Enyeribe - 8.1km)</option>
-                    <option value="26">Rider 26 (Peter Okolie - 9.5km)</option>
+                    <option value="">Loading riders...</option>
                 </select>
                 <button onclick="assignOrder()">Assign Order</button>
             </div>
@@ -284,6 +273,79 @@
         let riderSocket = null;
         let dispatchSocket = null;
         let currentRiderId = null;
+        
+        // Load riders on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRiders();
+        });
+        
+        // Function to load riders from API
+        async function loadRiders() {
+            try {
+                logToRider('🔄 Loading riders from server...', 'info');
+                logToDispatch('🔄 Loading riders from server...', 'info');
+                
+                const response = await fetch('http://localhost:3000/api/riders/all');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const riders = await response.json();
+                
+                // Update both rider select dropdowns
+                updateRiderSelect('riderId', riders);
+                updateRiderSelect('assignRiderId', riders);
+                
+                logToRider(`✅ Loaded ${riders.length} riders successfully`, 'success');
+                logToDispatch(`✅ Loaded ${riders.length} riders successfully`, 'success');
+                
+            } catch (error) {
+                console.error('Error loading riders:', error);
+                logToRider(`❌ Error loading riders: ${error.message}`, 'error');
+                logToDispatch(`❌ Error loading riders: ${error.message}`, 'error');
+                
+                // Fallback to sample data if API fails
+                const fallbackRiders = [
+                    { id: 1, name: 'Sample Rider 1', email: 'rider1@test.com' },
+                    { id: 2, name: 'Sample Rider 2', email: 'rider2@test.com' }
+                ];
+                updateRiderSelect('riderId', fallbackRiders);
+                updateRiderSelect('assignRiderId', fallbackRiders);
+            }
+        }
+        
+        // Function to update rider select dropdown
+        function updateRiderSelect(selectId, riders) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '';
+            
+            if (riders.length === 0) {
+                select.innerHTML = '<option value="">No riders available</option>';
+                return;
+            }
+            
+            // Add default option
+            select.innerHTML = '<option value="">Select a rider...</option>';
+            
+            // Add rider options
+            riders.forEach(rider => {
+                const option = document.createElement('option');
+                option.value = rider.id;
+                
+                // Create display text with available info
+                let displayText = `Rider ${rider.id} (${rider.name})`;
+                if (rider.email) {
+                    displayText += ` - ${rider.email}`;
+                }
+                if (rider.is_available !== undefined) {
+                    displayText += ` - ${rider.is_available ? 'Available' : 'Unavailable'}`;
+                }
+                
+                option.textContent = displayText;
+                select.appendChild(option);
+            });
+        }
         
         // Logging functions
         function logToRider(message, type = 'info') {

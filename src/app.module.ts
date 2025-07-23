@@ -10,6 +10,8 @@ import { DispatchController } from './shared/controllers/dispatch.controller';
 import { RabbitMQController } from './rabbitmq/rabbitmq.controller';
 import { KnexService } from './database/knex.service';
 import { RabbitMQService } from './rabbitmq/rabbitmq.service';
+import { RiderService } from './rider/rider.service';
+import { ConnectionManagerService } from './websockets/connection-manager.service';
 import { WebSocketsModule } from './websockets/websockets.module';
 import { RiderModule } from './rider/rider.module';
 
@@ -27,6 +29,8 @@ import { RiderModule } from './rider/rider.module';
     DispatchService,
     ProximityService,
     OrderProximityService,
+    RiderService,
+    ConnectionManagerService,
     KnexService,
     RabbitMQService,
   ],

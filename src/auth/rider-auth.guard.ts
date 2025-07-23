@@ -5,27 +5,42 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { RiderAuthService } from '../rider/rider-auth.service';
 
 /**
- * Simple rider authentication guard
- * For demonstration purposes - in production, use proper JWT authentication
+ * JWT-based rider authentication guard
+ * Validates rider tokens and extracts rider ID
  */
 @Injectable()
 export class RiderAuthGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
+  constructor(private readonly riderAuthService: RiderAuthService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
 
-    // Simple header-based authentication for demo
-    const riderId = request.headers['x-rider-id'];
-
-    if (!riderId || isNaN(Number(riderId))) {
-      throw new UnauthorizedException('Valid rider authentication required');
+    // Extract token from Authorization header
+    const authHeader = request.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Bearer token required');
     }
 
-    // Attach rider ID to request for use in controllers
-    request['riderId'] = Number(riderId);
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
-    return true;
+    try {
+      // Validate token and get rider ID
+      const riderId = await this.riderAuthService.validateToken(token);
+      
+      if (!riderId) {
+        throw new UnauthorizedException('Invalid or expired token');
+      }
+
+      // Attach rider ID to request for use in controllers
+      request['riderId'] = riderId;
+
+      return true;
+    } catch (error) {
+      throw new UnauthorizedException('Invalid authentication token');
+    }
   }
 }
 

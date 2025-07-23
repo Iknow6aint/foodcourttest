@@ -7,6 +7,7 @@ import {
   HttpStatus,
   UseGuards,
   Logger,
+  Headers,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,6 +24,7 @@ import {
   ChangePasswordDto,
 } from '../models/dto/rider-auth.dto';
 import { RiderAuthResponseDto } from '../models/dto/rider-response.dto';
+import { TokenResponseDto, TokenIntrospectionDto } from '../models/dto/token-response.dto';
 import {
   ValidationErrorResponseDto,
   ErrorResponseDto,
@@ -86,6 +88,64 @@ export class RiderAuthController {
   async signin(@Body() signinData: SigninRiderDto): Promise<RiderAuthResponseDto> {
     this.logger.log(`Rider sign in attempt: ${signinData.email}`);
     return this.riderAuthService.signin(signinData);
+  }
+
+  @Post('signin-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Rider sign in - token only',
+    description: 'Authenticate rider and return only the access token',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Sign in successful - token returned',
+    type: TokenResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Validation errors',
+    type: ValidationErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid credentials',
+    type: UnauthorizedErrorResponseDto,
+  })
+  async signinToken(@Body() signinData: SigninRiderDto): Promise<TokenResponseDto> {
+    this.logger.log(`Rider token sign in attempt: ${signinData.email}`);
+    return this.riderAuthService.signinTokenOnly(signinData);
+  }
+
+  @Post('introspect')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Token introspection',
+    description: 'Get information about a JWT token',
+  })
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'Bearer token to introspect',
+    required: true,
+    example: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Token introspection successful',
+    type: TokenIntrospectionDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Missing or invalid token',
+    type: ErrorResponseDto,
+  })
+  async introspectToken(@Headers('authorization') authHeader: string): Promise<TokenIntrospectionDto> {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return { active: false } as TokenIntrospectionDto;
+    }
+    
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    this.logger.log('Token introspection request');
+    return this.riderAuthService.introspectToken(token);
   }
 
   @Put('change-password')

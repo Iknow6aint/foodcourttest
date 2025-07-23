@@ -37,14 +37,13 @@ import {
 import { SwaggerExamples } from '../models/dto/swagger-examples';
 
 @ApiTags('Riders')
-@ApiSecurity('rider-auth')
+@ApiSecurity('bearer')
 @Controller('api/riders')
-@UseGuards(RiderAuthGuard)
 @ApiHeader({
-  name: 'x-rider-id',
-  description: 'Rider ID for authentication (e.g., 1, 2, 3)',
+  name: 'Authorization',
+  description: 'Bearer token for rider authentication (e.g., Bearer rider-1-1234567890)',
   required: true,
-  example: '1',
+  example: 'Bearer rider-1-1234567890',
 })
 export class RiderController {
   private readonly logger = new Logger(RiderController.name);
@@ -52,6 +51,7 @@ export class RiderController {
   constructor(private readonly riderService: RiderService) {}
 
   @Get('me')
+  @UseGuards(RiderAuthGuard)
   @ApiOperation({
     summary: 'Get rider profile',
     description: 'Retrieve the authenticated rider profile information',
@@ -82,6 +82,7 @@ export class RiderController {
   }
 
   @Put('me/location')
+  @UseGuards(RiderAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Update rider location',
@@ -123,6 +124,7 @@ export class RiderController {
   }
 
   @Patch('me/availability')
+  @UseGuards(RiderAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Toggle rider availability',
@@ -163,6 +165,7 @@ export class RiderController {
   }
 
   @Patch('me/profile')
+  @UseGuards(RiderAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Update rider profile',
@@ -201,6 +204,7 @@ export class RiderController {
   }
 
   @Get('me/location')
+  @UseGuards(RiderAuthGuard)
   @ApiOperation({
     summary: 'Get rider current location',
     description: 'Retrieve the current location of the authenticated rider',
@@ -225,5 +229,23 @@ export class RiderController {
   async getRiderLocation(@CurrentRider() riderId: number) {
     this.logger.log(`Fetching location for rider ${riderId}`);
     return this.riderService.getRiderLocation(riderId);
+  }
+
+  // Public endpoint - no authentication required
+  @Get('all')
+  @ApiOperation({
+    summary: 'Get all active riders',
+    description: 'Retrieve a list of all active riders for testing and selection purposes',
+    tags: ['Public'],
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of active riders retrieved successfully',
+    type: [RiderPublicProfileDto],
+    example: [SwaggerExamples.RIDER_PROFILE],
+  })
+  async getAllActiveRiders(): Promise<RiderPublicProfileDto[]> {
+    this.logger.log('Fetching all active riders');
+    return this.riderService.getAllActiveRiders();
   }
 }

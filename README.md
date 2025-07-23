@@ -81,11 +81,13 @@ npm list --depth=0
    DB_HOST=localhost
    DB_PORT=5432
    DB_USER=postgres
-   DB_PASSWORD=iknowsaint
+   DB_PASSWORD=******
    DB_NAME=myfoodcourt
    RABBITMQ_URL=amqp://localhost:5672
    PORT=3000
    NODE_ENV=development
+   JWT_SECRET=your-jwt-secret-key-here
+
    ```
 
 3. **Run Database Migrations**
