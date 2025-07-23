@@ -10,7 +10,7 @@ import {
   Get,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { DispatchService } from '../services/dispatch.service';
+import { DispatchService } from '../shared/services/dispatch.service';
 import { OrderProximityService } from '../order/order-proximity.service';
 import { OrderAssignmentDto } from '../models/dto/rider.dto';
 import { ApiResponseDto } from '../models/dto/rider-response.dto';

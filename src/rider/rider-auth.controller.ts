@@ -24,7 +24,10 @@ import {
   ChangePasswordDto,
 } from '../models/dto/rider-auth.dto';
 import { RiderAuthResponseDto } from '../models/dto/rider-response.dto';
-import { TokenResponseDto, TokenIntrospectionDto } from '../models/dto/token-response.dto';
+import {
+  TokenResponseDto,
+  TokenIntrospectionDto,
+} from '../models/dto/token-response.dto';
 import {
   ValidationErrorResponseDto,
   ErrorResponseDto,
@@ -59,7 +62,9 @@ export class RiderAuthController {
     description: 'Conflict - Email or phone already registered',
     type: ErrorResponseDto,
   })
-  async signup(@Body() signupData: SignupRiderDto): Promise<RiderAuthResponseDto> {
+  async signup(
+    @Body() signupData: SignupRiderDto,
+  ): Promise<RiderAuthResponseDto> {
     this.logger.log(`New rider registration attempt: ${signupData.email}`);
     return this.riderAuthService.signup(signupData);
   }
@@ -85,7 +90,9 @@ export class RiderAuthController {
     description: 'Unauthorized - Invalid credentials',
     type: UnauthorizedErrorResponseDto,
   })
-  async signin(@Body() signinData: SigninRiderDto): Promise<RiderAuthResponseDto> {
+  async signin(
+    @Body() signinData: SigninRiderDto,
+  ): Promise<RiderAuthResponseDto> {
     this.logger.log(`Rider sign in attempt: ${signinData.email}`);
     return this.riderAuthService.signin(signinData);
   }
@@ -111,7 +118,9 @@ export class RiderAuthController {
     description: 'Unauthorized - Invalid credentials',
     type: UnauthorizedErrorResponseDto,
   })
-  async signinToken(@Body() signinData: SigninRiderDto): Promise<TokenResponseDto> {
+  async signinToken(
+    @Body() signinData: SigninRiderDto,
+  ): Promise<TokenResponseDto> {
     this.logger.log(`Rider token sign in attempt: ${signinData.email}`);
     return this.riderAuthService.signinTokenOnly(signinData);
   }
@@ -138,11 +147,13 @@ export class RiderAuthController {
     description: 'Bad Request - Missing or invalid token',
     type: ErrorResponseDto,
   })
-  async introspectToken(@Headers('authorization') authHeader: string): Promise<TokenIntrospectionDto> {
+  async introspectToken(
+    @Headers('authorization') authHeader: string,
+  ): Promise<TokenIntrospectionDto> {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return { active: false } as TokenIntrospectionDto;
     }
-    
+
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     this.logger.log('Token introspection request');
     return this.riderAuthService.introspectToken(token);
