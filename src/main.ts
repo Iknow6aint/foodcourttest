@@ -1,3 +1,6 @@
+import { config } from 'dotenv';
+config(); // Load environment variables first
+
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -27,7 +30,6 @@ async function bootstrap() {
     )
     .setLicense('MIT', 'https://opensource.org/licenses/MIT')
     .addServer('http://localhost:3000', 'Development Server')
-    .addServer('https://api.foodcourt.com', 'Production Server')
     .addTag('Orders', 'Order management and tracking endpoints')
     .addTag('Riders', 'Rider management and location tracking endpoints')
     .addTag('RabbitMQ', 'Message queue testing and status endpoints')

@@ -16,7 +16,6 @@ export class RiderAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
 
     // Simple header-based authentication for demo
-    // In production, use JWT tokens and proper validation
     const riderId = request.headers['x-rider-id'];
 
     if (!riderId || isNaN(Number(riderId))) {

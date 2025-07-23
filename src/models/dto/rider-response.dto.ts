@@ -167,3 +167,31 @@ export class ApiResponseDto<T> {
   })
   timestamp: Date;
 }
+
+/**
+ * DTO for rider authentication response (signup/signin)
+ */
+export class RiderAuthResponseDto {
+  @ApiProperty({ description: 'Success status', example: true })
+  success: boolean;
+
+  @ApiProperty({
+    description: 'Response message',
+    example: 'Sign in successful',
+  })
+  message: string;
+
+  @ApiProperty({
+    description: 'Authentication data',
+  })
+  data: {
+    rider: RiderPublicProfileDto;
+    token: string;
+  };
+
+  @ApiProperty({
+    description: 'Response timestamp',
+    example: '2025-07-22T10:30:00Z',
+  })
+  timestamp: Date;
+}

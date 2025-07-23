@@ -7,10 +7,7 @@ import {
 import { KnexService } from '../database/knex.service';
 import {
   Rider,
-  RiderLocationUpdate,
-  UpdateRiderData,
   isValidCoordinates,
-  getRiderStatus,
 } from '../models/rider.model';
 import {
   RiderLocationUpdateDto,
@@ -44,20 +41,16 @@ export class RiderService {
    */
   async getRiderProfile(riderId: number): Promise<RiderPublicProfileDto> {
     try {
-      const rider = await this.knex('riders')
-        .select([
-          'id',
-          'name',
-          'email',
-          'phone',
-          'is_available',
-          'vehicle_type',
-          'profile_image_url',
-          'created_at',
-        ])
-        .where('id', riderId)
-        .andWhere('is_active', true)
-        .first();
+      const riderResult = await this.knex.raw(`
+        SELECT 
+          id, name, email, phone, is_available, vehicle_type, 
+          profile_image_url, created_at
+        FROM riders 
+        WHERE id = ? AND is_active = true 
+        LIMIT 1
+      `, [riderId]);
+
+      const rider = riderResult.rows[0];
 
       if (!rider) {
         throw new NotFoundException(
@@ -94,16 +87,16 @@ export class RiderService {
       );
     }
 
-    // Use transaction for data consistency
-    const trx = await this.knex.transaction();
-
     try {
-      // Check if rider exists and is active
-      const rider = await trx('riders')
-        .select('id', 'name', 'is_active')
-        .where('id', riderId)
-        .andWhere('is_active', true)
-        .first();
+      // Check if rider exists and is active using raw SQL
+      const riderCheckResult = await this.knex.raw(`
+        SELECT id, name, is_active 
+        FROM riders 
+        WHERE id = ? AND is_active = true 
+        LIMIT 1
+      `, [riderId]);
+
+      const rider = riderCheckResult.rows[0];
 
       if (!rider) {
         throw new NotFoundException(
@@ -111,29 +104,27 @@ export class RiderService {
         );
       }
 
-      // Update location data
-      const updateData: RiderLocationUpdate = {
-        current_latitude,
-        current_longitude,
-        last_location_update: new Date(),
-      };
+      // Update location data using raw SQL
+      await this.knex.raw(`
+        UPDATE riders 
+        SET 
+          current_latitude = ?, 
+          current_longitude = ?, 
+          last_location_update = NOW()
+        WHERE id = ?
+      `, [current_latitude, current_longitude, riderId]);
 
-      await trx('riders').where('id', riderId).update(updateData);
+      // Fetch updated rider data using raw SQL
+      const updatedRiderResult = await this.knex.raw(`
+        SELECT 
+          id, name, current_latitude, current_longitude, 
+          last_location_update, is_available
+        FROM riders 
+        WHERE id = ? 
+        LIMIT 1
+      `, [riderId]);
 
-      // Fetch updated rider data
-      const updatedRider = await trx('riders')
-        .select([
-          'id',
-          'name',
-          'current_latitude',
-          'current_longitude',
-          'last_location_update',
-          'is_available',
-        ])
-        .where('id', riderId)
-        .first();
-
-      await trx.commit();
+      const updatedRider = updatedRiderResult.rows[0];
 
       // Broadcast location update to dispatch dashboards via WebSocket
       const locationMessage: LocationUpdateMessageDto = {
@@ -161,7 +152,6 @@ export class RiderService {
         timestamp: new Date(),
       };
     } catch (error) {
-      await trx.rollback();
       this.logger.error(
         `Error updating rider location: ${error.message}`,
         error.stack,
@@ -185,12 +175,15 @@ export class RiderService {
     availabilityData: RiderAvailabilityUpdateDto,
   ): Promise<ApiResponseDto<RiderPublicProfileDto>> {
     try {
-      // Check if rider exists and is active
-      const rider = await this.knex('riders')
-        .select('id', 'name', 'is_active')
-        .where('id', riderId)
-        .andWhere('is_active', true)
-        .first();
+      // Check if rider exists and is active using raw SQL
+      const riderCheckResult = await this.knex.raw(`
+        SELECT id, name, is_active 
+        FROM riders 
+        WHERE id = ? AND is_active = true 
+        LIMIT 1
+      `, [riderId]);
+
+      const rider = riderCheckResult.rows[0];
 
       if (!rider) {
         throw new NotFoundException(
@@ -198,11 +191,12 @@ export class RiderService {
         );
       }
 
-      // Update availability
-      await this.knex('riders').where('id', riderId).update({
-        is_available: availabilityData.is_available,
-        updated_at: new Date(),
-      });
+      // Update availability using raw SQL
+      await this.knex.raw(`
+        UPDATE riders 
+        SET is_available = ?, updated_at = NOW() 
+        WHERE id = ?
+      `, [availabilityData.is_available, riderId]);
 
       // Fetch updated profile
       const updatedProfile = await this.getRiderProfile(riderId);
@@ -238,12 +232,15 @@ export class RiderService {
     profileData: RiderProfileUpdateDto,
   ): Promise<ApiResponseDto<RiderPublicProfileDto>> {
     try {
-      // Check if rider exists and is active
-      const rider = await this.knex('riders')
-        .select('id', 'name', 'is_active')
-        .where('id', riderId)
-        .andWhere('is_active', true)
-        .first();
+      // Check if rider exists and is active using raw SQL
+      const riderCheckResult = await this.knex.raw(`
+        SELECT id, name, is_active 
+        FROM riders 
+        WHERE id = ? AND is_active = true 
+        LIMIT 1
+      `, [riderId]);
+
+      const rider = riderCheckResult.rows[0];
 
       if (!rider) {
         throw new NotFoundException(
@@ -251,21 +248,39 @@ export class RiderService {
         );
       }
 
-      // Prepare update data (only include provided fields)
-      const updateData: UpdateRiderData = {
-        ...profileData,
-        updated_at: new Date(),
-      };
+      // Build dynamic update query based on provided fields
+      const updateFields: string[] = [];
+      const updateValues: any[] = [];
 
-      // Remove undefined values
-      Object.keys(updateData).forEach((key) => {
-        if (updateData[key] === undefined) {
-          delete updateData[key];
-        }
-      });
+      if (profileData.name !== undefined) {
+        updateFields.push('name = ?');
+        updateValues.push(profileData.name);
+      }
+      if (profileData.phone !== undefined) {
+        updateFields.push('phone = ?');
+        updateValues.push(profileData.phone);
+      }
+      if (profileData.vehicle_type !== undefined) {
+        updateFields.push('vehicle_type = ?');
+        updateValues.push(profileData.vehicle_type);
+      }
+      if (profileData.profile_image_url !== undefined) {
+        updateFields.push('profile_image_url = ?');
+        updateValues.push(profileData.profile_image_url);
+      }
 
-      // Update profile
-      await this.knex('riders').where('id', riderId).update(updateData);
+      // Always update the updated_at field
+      updateFields.push('updated_at = NOW()');
+      updateValues.push(riderId); // For WHERE clause
+
+      if (updateFields.length > 1) { // More than just updated_at
+        const updateQuery = `
+          UPDATE riders 
+          SET ${updateFields.join(', ')} 
+          WHERE id = ?
+        `;
+        await this.knex.raw(updateQuery, updateValues);
+      }
 
       // Fetch updated profile
       const updatedProfile = await this.getRiderProfile(riderId);
@@ -296,18 +311,16 @@ export class RiderService {
    */
   async getRiderLocation(riderId: number): Promise<RiderLocationDto> {
     try {
-      const rider = await this.knex('riders')
-        .select([
-          'id',
-          'name',
-          'current_latitude',
-          'current_longitude',
-          'last_location_update',
-          'is_available',
-        ])
-        .where('id', riderId)
-        .andWhere('is_active', true)
-        .first();
+      const riderResult = await this.knex.raw(`
+        SELECT 
+          id, name, current_latitude, current_longitude, 
+          last_location_update, is_available
+        FROM riders 
+        WHERE id = ? AND is_active = true 
+        LIMIT 1
+      `, [riderId]);
+
+      const rider = riderResult.rows[0];
 
       if (!rider) {
         throw new NotFoundException(
@@ -334,12 +347,14 @@ export class RiderService {
    */
   async validateRiderExists(riderId: number): Promise<boolean> {
     try {
-      const rider = await this.knex('riders')
-        .select('id')
-        .where('id', riderId)
-        .andWhere('is_active', true)
-        .first();
+      const riderResult = await this.knex.raw(`
+        SELECT id 
+        FROM riders 
+        WHERE id = ? AND is_active = true 
+        LIMIT 1
+      `, [riderId]);
 
+      const rider = riderResult.rows[0];
       return !!rider;
     } catch (error) {
       this.logger.error(

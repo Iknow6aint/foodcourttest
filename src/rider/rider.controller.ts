@@ -17,7 +17,7 @@ import {
   ApiHeader,
   ApiSecurity,
 } from '@nestjs/swagger';
-import { RiderService } from '../services/rider.service';
+import { RiderService } from '../rider/rider.service';
 import { RiderAuthGuard, CurrentRider } from '../auth/rider-auth.guard';
 import {
   RiderLocationUpdateDto,

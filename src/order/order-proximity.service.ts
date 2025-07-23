@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { KnexService } from '../database/knex.service';
-import { ProximityService, Location, NearbyRider } from '../services/proximity.service';
+import { ProximityService } from '../services/proximity.service';
+import { Location, NearbyRider } from '../services/proximity.service';
 import { ConnectionManagerService } from '../websockets/connection-manager.service';
 import { Rider } from '../models/rider.model';
 import { CalculatedOrder } from '../models/calculated-order.model';
@@ -123,7 +124,7 @@ export class OrderProximityService {
         .sort((a, b) => a.distance_km - b.distance_km);
 
       this.logger.log(
-        `📍 PROXIMITY SEARCH RESULTS:\n` +
+        `PROXIMITY SEARCH RESULTS:\n` +
           `   → Riders in ${radiusKm}km radius: ${ridersWithDistance.length}\n` +
           `   → Restaurant: (${restaurantLocation.latitude}, ${restaurantLocation.longitude})\n` +
           `   → Closest rider: ${
@@ -160,7 +161,7 @@ export class OrderProximityService {
     const startTime = Date.now();
 
     this.logger.log(
-      `🚀 STARTING PROXIMITY SEARCH for Order #${orderLocation.orderId}`,
+      `STARTING PROXIMITY SEARCH for Order #${orderLocation.orderId}`,
     );
 
     const nearbyRiders = await this.findNearbyRiders(
@@ -185,7 +186,7 @@ export class OrderProximityService {
     };
 
     this.logger.log(
-      `✅ PROXIMITY SEARCH COMPLETED in ${searchTime}ms:\n` +
+      `PROXIMITY SEARCH COMPLETED in ${searchTime}ms:\n` +
         `   → Order ID: ${orderLocation.orderId}\n` +
         `   → Total nearby riders: ${nearbyRiders.length}\n` +
         `   → Online riders: ${connectedRiders.length}\n` +
@@ -193,7 +194,11 @@ export class OrderProximityService {
     );
 
     // Send targeted notifications to connected riders
-    await this.sendTargetedRiderNotifications(orderLocation.orderId, connectedRiders, orderLocation.restaurantLocation);
+    await this.sendTargetedRiderNotifications(
+      orderLocation.orderId,
+      connectedRiders,
+      orderLocation.restaurantLocation,
+    );
 
     // Broadcast results to dispatch dashboard
     await this.broadcastProximityResults(result);
@@ -274,21 +279,27 @@ export class OrderProximityService {
       return;
     }
 
-    this.logger.log(`📨 SENDING TARGETED NOTIFICATIONS for Order #${orderId} to ${nearbyRiders.length} rider(s)`);
+    this.logger.log(
+      `📨 SENDING TARGETED NOTIFICATIONS for Order #${orderId} to ${nearbyRiders.length} rider(s)`,
+    );
 
     const knexInstance = this.knex.getKnex();
 
     try {
       // Get order details
       const orderDetails = await knexInstance('orders')
-        .leftJoin('calculated_orders', 'orders.calculated_order_id', 'calculated_orders.id')
+        .leftJoin(
+          'calculated_orders',
+          'orders.calculated_order_id',
+          'calculated_orders.id',
+        )
         .select(
           'orders.id as order_id',
           'orders.order_code',
           'calculated_orders.restaurant_name',
           'calculated_orders.pickup_address',
           'calculated_orders.customer_name',
-          'calculated_orders.total_amount'
+          'calculated_orders.total_amount',
         )
         .where('orders.id', orderId)
         .first();
@@ -317,30 +328,41 @@ export class OrderProximityService {
               latitude: restaurantLocation.latitude,
               longitude: restaurantLocation.longitude,
             },
-            estimatedPickupTime: new Date(Date.now() + 20 * 60 * 1000).toISOString(), // 20 minutes from now
+            estimatedPickupTime: new Date(
+              Date.now() + 20 * 60 * 1000,
+            ).toISOString(), // 20 minutes from now
           },
           timestamp: new Date().toISOString(),
           messageId: `order-notification-${orderId}-${rider.id}-${Date.now()}`,
         };
 
-        const success = this.connectionManager.sendToRider(rider.id, notification);
-        
+        const success = this.connectionManager.sendToRider(
+          rider.id,
+          notification,
+        );
+
         if (success) {
           notificationsSent++;
-          this.logger.log(`   ✅ Notification sent to ${rider.name} (ID: ${rider.id}) - ${rider.distance_km}km away`);
+          this.logger.log(
+            `   Notification sent to ${rider.name} (ID: ${rider.id}) - ${rider.distance_km}km away`,
+          );
         } else {
           notificationsFailed++;
-          this.logger.warn(`   ❌ Failed to notify ${rider.name} (ID: ${rider.id}) - not connected`);
+          this.logger.warn(
+            `   Failed to notify ${rider.name} (ID: ${rider.id}) - not connected`,
+          );
         }
       }
 
-      this.logger.log(`📊 NOTIFICATION SUMMARY for Order #${orderId}:
+      this.logger.log(`NOTIFICATION SUMMARY for Order #${orderId}:
    → Total riders found: ${nearbyRiders.length}
    → Notifications sent: ${notificationsSent}
    → Notifications failed: ${notificationsFailed}`);
-
     } catch (error) {
-      this.logger.error(`Error sending targeted notifications for Order #${orderId}:`, error.message);
+      this.logger.error(
+        `Error sending targeted notifications for Order #${orderId}:`,
+        error.message,
+      );
     }
   }
 
@@ -426,7 +448,7 @@ export class OrderProximityService {
 
         if (distance <= this.DEFAULT_SEARCH_RADIUS) {
           this.logger.log(
-            `🔄 Rider ${riderId} moved within range of Order #${order.order_id} (${distance}km)`,
+            `Rider ${riderId} moved within range of Order #${order.order_id} (${distance}km)`,
           );
 
           // Trigger new proximity search for this order
